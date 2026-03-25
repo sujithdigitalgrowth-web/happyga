@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">happyga</string>
+    <string name="title_activity_main">happyga</string>
+    <string name="package_name">com.happyga.app</string>
+    <string name="custom_url_scheme">com.happyga.app</string>
+</resources>

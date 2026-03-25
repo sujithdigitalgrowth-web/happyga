@@ -1,0 +1,27 @@
+.bottom-nav {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.nav-random-call {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  background: #F1E3D7;
+  border: 1px solid rgba(207, 122, 40, 0.22);
+  color: var(--ink);
+  font-size: 12px;
+  border-radius: 14px;
+  padding: 8px 6px;
+}
+
+.nav-random-call.is-calling {
+  background: rgba(207, 122, 40, 0.2);
+  border-color: rgba(207, 122, 40, 0.36);
+}
+
+@media (max-width: 700px) {
+  .bottom-nav {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+

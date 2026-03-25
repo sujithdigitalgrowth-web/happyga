@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "814862354847",
+    "project_id": "happyga-2256b",
+    "storage_bucket": "happyga-2256b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:814862354847:android:4e9bf075c1ed10097f55aa",
+        "android_client_info": {
+          "package_name": "com.teknlgy.happyga"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAE_XJG5CEUj2ly7eygSvFVGkGKB6yutiQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

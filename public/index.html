@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#F37321" />
+  <title>happyga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="icon" type="image/png" href="assets/brand/logo.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="random-call.css" />
+</head>
+<body>
+  <div class="background-blobs" aria-hidden="true">
+    <span class="blob blob-a"></span>
+    <span class="blob blob-b"></span>
+    <span class="blob blob-c"></span>
+  </div>
+
+  <main class="app-shell">
+    <section class="phone-shell card" aria-label="happyga mobile app">
+      <section class="app-screen">
+        <div data-fragment="fragments/topbar.html"></div>
+        <div data-fragment="fragments/home-view.html"></div>
+        <div data-fragment="fragments/profile-view.html"></div>
+        <div data-fragment="fragments/sessions-view.html"></div>
+        <div data-fragment="fragments/bottom-nav.html"></div>
+        <div data-fragment="fragments/modals.html"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="auth-guard.js"></script>
+  <script type="module" src="scripts/main.js"></script>
+</body>
+</html>

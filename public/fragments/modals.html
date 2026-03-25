@@ -1,0 +1,167 @@
+<div id="coinsModal" class="coins-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="coinsTitle">
+  <div class="coins-modal card">
+    <div class="coins-modal-head">
+      <div>
+        <p class="eyebrow">Coins</p>
+        <h2 id="coinsTitle">Choose your pack</h2>
+      </div>
+      <button id="closeCoinsBtn" class="close-btn" type="button" aria-label="Close">✕</button>
+    </div>
+    <p class="coins-desc">Select how many coins you want, then continue with one purchase button.</p>
+    <div id="plansList" class="plans-list" role="listbox" aria-label="Coin plans">
+      <button class="plan-item is-selected" type="button" data-coins="50" data-price="20" aria-selected="true">
+        <div class="plan-left">
+          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
+          <div>
+            <strong>50 Coins</strong>
+            <p>Quick hello pack</p>
+          </div>
+        </div>
+        <span class="plan-price">₹20</span>
+      </button>
+      <button class="plan-item" type="button" data-coins="120" data-price="50" aria-selected="false">
+        <div class="plan-left">
+          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
+          <div>
+            <strong>120 Coins</strong>
+            <p>Popular starter</p>
+          </div>
+        </div>
+        <span class="plan-price">₹50</span>
+      </button>
+      <button class="plan-item" type="button" data-coins="250" data-price="100" aria-selected="false">
+        <div class="plan-left">
+          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
+          <div>
+            <strong>250 Coins</strong>
+            <p>Weekend bundle</p>
+          </div>
+        </div>
+        <span class="plan-price">₹100</span>
+      </button>
+      <button class="plan-item" type="button" data-coins="700" data-price="250" aria-selected="false">
+        <div class="plan-left">
+          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
+          <div>
+            <strong>700 Coins</strong>
+            <p>Power user</p>
+          </div>
+        </div>
+        <span class="plan-price">₹250</span>
+      </button>
+      <button class="plan-item" type="button" data-coins="1500" data-price="499" aria-selected="false">
+        <div class="plan-left">
+          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
+          <div>
+            <strong>1500 Coins</strong>
+            <p>Unlimited nights</p>
+          </div>
+        </div>
+        <span class="plan-price">₹499</span>
+      </button>
+    </div>
+    <div class="coins-footer">
+      <p id="selectedPlanText" class="selected-plan-text">Selected: 50 Coins for ₹20</p>
+      <button id="buyNowBtn" class="buy-now-btn" type="button">Buy Now</button>
+    </div>
+  </div>
+</div>
+
+<div id="callScreenModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="callScreenTitle">
+  <div class="call-screen card">
+    <p class="eyebrow">Live call</p>
+    <h2 id="callScreenTitle" class="call-screen-title">Calling user</h2>
+    <p id="callScreenStatus" class="call-screen-status is-calling">Calling...</p>
+    <p id="callScreenNote" class="call-screen-note">Trying to connect now.</p>
+    <div id="callScreenPhoneRow" class="call-screen-phone-row hidden">
+      <label class="call-screen-phone-label" for="callScreenPhoneInput">Ring a real phone (test)</label>
+      <div class="call-screen-phone-field">
+        <input id="callScreenPhoneInput" class="call-screen-phone-input" type="tel" placeholder="+91XXXXXXXXXX" />
+        <button id="callScreenDialBtn" class="call-screen-dial-btn" type="button">Dial</button>
+      </div>
+      <p id="callScreenDialStatus" class="call-screen-dial-status"></p>
+    </div>
+    <div class="call-screen-actions">
+      <button id="callScreenCloseBtn" class="call-screen-close" type="button">End</button>
+      <button id="callScreenBuyBtn" class="buy-now-btn hidden" type="button">Buy Now</button>
+    </div>
+  </div>
+</div>
+
+<div id="detailsModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+  <div class="action-modal card">
+    <div class="action-modal-head">
+      <div>
+        <p class="eyebrow">Profile</p>
+        <h2 id="detailsTitle">Personal details</h2>
+      </div>
+      <button class="close-btn modal-close-btn" type="button" data-close-modal="detailsModal" aria-label="Close">✕</button>
+    </div>
+    <form id="profileForm" class="profile-form">
+      <label class="field-label">
+        <span>Name</span>
+        <input id="nameInput" name="name" type="text" value="Rahul" />
+      </label>
+      <label class="field-label">
+        <span>Age</span>
+        <input id="ageInput" name="age" type="number" min="18" max="99" value="26" />
+      </label>
+      <label class="field-label">
+        <span>Interests</span>
+        <textarea id="interestsInput" name="interests" rows="4">Coffee dates, long drives, tech talks</textarea>
+      </label>
+      <button id="saveProfileBtn" class="save-btn" type="submit">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+<div id="listenerModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="listenerTitle">
+  <div class="action-modal card">
+    <div class="action-modal-head">
+      <div>
+        <p class="eyebrow">Listener</p>
+        <h2 id="listenerTitle">Create listener profile</h2>
+      </div>
+      <button class="close-btn modal-close-btn" type="button" data-close-modal="listenerModal" aria-label="Close">✕</button>
+    </div>
+    <div class="listener-info-card">
+      <p class="listener-info-title">Earning model</p>
+      <p class="listener-info-copy">Users spend 1 coin every 10 seconds on a call, which is 6 coins per minute. Listener payouts are 40% of the user coin spend.</p>
+      <p class="listener-info-highlight">That means 2.4 coins per minute equivalent goes to the listener.</p>
+    </div>
+    <form id="listenerForm" class="profile-form">
+      <label class="field-label">
+        <span>Display name</span>
+        <input id="listenerNameInput" name="listenerName" type="text" value="Rahul" />
+      </label>
+      <label class="field-label">
+        <span>Languages</span>
+        <input id="listenerLanguagesInput" name="languages" type="text" value="English, Hindi, Telugu" />
+      </label>
+      <label class="field-label">
+        <span>About you</span>
+        <textarea id="listenerAboutInput" name="about" rows="4">Warm listener for life updates, dating advice, and late-night conversations.</textarea>
+      </label>
+      <button id="saveListenerBtn" class="save-btn" type="submit">Create Listener Profile</button>
+    </form>
+  </div>
+</div>
+
+<div id="referModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="referTitle">
+  <div class="action-modal card">
+    <div class="action-modal-head">
+      <div>
+        <p class="eyebrow">Referral</p>
+        <h2 id="referTitle">Refer a friend</h2>
+      </div>
+      <button class="close-btn modal-close-btn" type="button" data-close-modal="referModal" aria-label="Close">✕</button>
+    </div>
+    <div class="referral-card">
+      <p class="listener-info-copy">Invite a friend to join happyga and earn bonus coins when they sign up and start using the app.</p>
+      <div class="referral-code-box">
+        <span id="referralCodeText">HAPPYGA40</span>
+      </div>
+      <button id="copyReferralBtn" class="save-btn" type="button">Copy Referral Code</button>
+    </div>
+  </div>
+</div>

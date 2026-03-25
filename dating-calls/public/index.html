@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dating Calls Test</title>
+  <style>
+    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #fff5e8; }
+    .box { background: #fff; border-radius: 20px; padding: 32px 28px; box-shadow: 0 12px 32px rgba(151,89,29,0.14); width: min(340px, 90vw); display: grid; gap: 14px; }
+    h2 { margin: 0; font-size: 22px; color: #301F10; }
+    p { margin: 0; font-size: 13px; color: #7a5a3d; }
+    input { width: 100%; box-sizing: border-box; border: 1px solid rgba(207,122,40,0.3); border-radius: 12px; padding: 12px 14px; font-size: 15px; color: #301F10; outline: none; }
+    input:focus { border-color: #F37321; box-shadow: 0 0 0 3px rgba(243,115,33,0.12); }
+    button { width: 100%; background: linear-gradient(135deg,#F37321,#FAB34A); color: #fff; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    #status { font-size: 14px; font-weight: 700; min-height: 20px; }
+    #status.ok { color: #2a7a4f; }
+    #status.err { color: #c95b34; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>📞 Test a Call</h2>
+    <p>Enter any Indian mobile number. Twilio will ring it for real.</p>
+    <input id="phoneInput" type="tel" placeholder="+91XXXXXXXXXX" value="+91" />
+    <button id="callBtn" onclick="startCall()">Call Now</button>
+    <p id="status"></p>
+  </div>
+
+  <script>
+    async function startCall() {
+      const phoneInput = document.getElementById('phoneInput');
+      const callBtn = document.getElementById('callBtn');
+      const status = document.getElementById('status');
+      const toNumber = phoneInput.value.trim();
+
+      if (!toNumber || toNumber.length < 10) {
+        status.textContent = 'Please enter a valid phone number.';
+        status.className = 'err';
+        return;
+      }
+
+      callBtn.disabled = true;
+      status.textContent = 'Dialling...';
+      status.className = '';
+
+      try {
+        const response = await fetch('/api/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'toNumber=' + encodeURIComponent(toNumber)
+        });
+        const result = await response.json();
+        if (result.success) {
+          status.textContent = '✅ Ringing ' + toNumber + ' — pick up your phone!';
+          status.className = 'ok';
+        } else {
+          status.textContent = '❌ ' + (result.error || 'Unknown error');
+          status.className = 'err';
+        }
+      } catch (err) {
+        status.textContent = '❌ Network error: ' + err.message;
+        status.className = 'err';
+      } finally {
+        callBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

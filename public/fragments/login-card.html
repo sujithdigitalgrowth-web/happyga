@@ -1,0 +1,32 @@
+<section class="login-card" aria-label="Phone verification login">
+  <div class="brand-row">
+    <div class="brand-mark">
+      <img src="assets/brand/logo.png" alt="happyga logo" />
+    </div>
+    <div>
+      <p class="brand-eyebrow">Welcome to</p>
+      <h1>happyga</h1>
+    </div>
+  </div>
+
+  <p class="subtitle">Login with your phone number to continue.</p>
+
+  <form id="phoneForm" class="form-grid">
+    <label class="field-label" for="phoneInput">Phone number</label>
+    <div class="phone-row">
+      <span class="country-code">+91</span>
+      <input id="phoneInput" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" required />
+    </div>
+    <button id="sendOtpBtn" class="primary-btn" type="submit">Send OTP</button>
+  </form>
+
+  <form id="otpForm" class="form-grid hidden" aria-live="polite">
+    <label class="field-label" for="otpInput">Enter OTP</label>
+    <input id="otpInput" class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" required />
+    <p id="otpHint" class="hint-text"></p>
+    <button id="verifyOtpBtn" class="primary-btn" type="submit">Verify & Continue</button>
+    <button id="resendOtpBtn" class="ghost-btn" type="button">Resend OTP</button>
+  </form>
+
+  <p id="statusText" class="status-text" role="status"></p>
+</section>

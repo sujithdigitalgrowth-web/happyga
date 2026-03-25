@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 72" role="img" aria-label="Coins button">
+  <rect x="2" y="2" width="216" height="68" rx="28" fill="#EBB641"/>
+  <circle cx="41" cy="36" r="22" fill="#E1A631" stroke="#9B6E1D" stroke-width="2"/>
+  <g fill="none" stroke="#301F10" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="38" cy="30" rx="8.5" ry="4.2" stroke-width="1.9"/>
+    <path d="M29.5 30v7.5c0 2.3 3.8 4.2 8.5 4.2s8.5-1.9 8.5-4.2V30" stroke-width="1.9"/>
+    <path d="M29.5 37.3c0 2.3 3.8 4.2 8.5 4.2s8.5-1.9 8.5-4.2" stroke-width="1.6"/>
+    <ellipse cx="44.5" cy="35.5" rx="7.2" ry="3.6" stroke-width="1.8"/>
+    <path d="M37.3 35.5v6.1c0 2 3.2 3.6 7.2 3.6s7.2-1.6 7.2-3.6v-6.1" stroke-width="1.8"/>
+  </g>
+  <text x="77" y="45" fill="#301F10" font-size="24" font-family="Georgia, Times New Roman, serif" font-weight="700" letter-spacing="0.3">Coins</text>
+</svg>
