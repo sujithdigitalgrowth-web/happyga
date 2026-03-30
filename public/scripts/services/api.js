@@ -1,6 +1,7 @@
 import { buildApiHeaders } from './auth.js';
 
 const NATIVE_API_BASE_URLS = [
+  'https://happyga-api.up.railway.app',
   'http://192.168.1.179:3000',
   'http://192.168.0.5:3000',
   'http://10.0.2.2:3000',

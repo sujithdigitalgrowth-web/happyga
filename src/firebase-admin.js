@@ -1,10 +1,14 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  let credential;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+  } else {
+    // eslint-disable-next-line global-require
+    credential = admin.credential.cert(require('../serviceAccountKey.json'));
+  }
+  admin.initializeApp({ credential });
 }
 
 const db = admin.firestore();
