@@ -11,14 +11,16 @@
     "apk:debug": "npx cap sync android && android\\gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.7.0"
+  },
+  "devDependencies": {
     "@capacitor-firebase/authentication": "^8.1.0",
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
-    "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^4.21.2",
-    "firebase": "^12.11.0",
-    "firebase-admin": "^13.7.0"
+    "firebase": "^12.11.0"
   }
 }
