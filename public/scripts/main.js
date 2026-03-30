@@ -14,7 +14,7 @@ import {
   rechargeWallet,
   saveSession,
   startDemoCall,
-  buildApiUrl,
+  apiFetch,
 } from './services/api.js';
 
 const DEFAULT_CALL_COST_COINS = 6;
@@ -256,7 +256,7 @@ async function init() {
       callScreenDialStatus.textContent = 'Dialling...';
       callScreenDialStatus.className = 'call-screen-dial-status';
       try {
-        const res = await fetch(buildApiUrl('/api/call'), {
+        const res = await apiFetch('/api/call', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: 'toNumber=' + encodeURIComponent(toNumber),

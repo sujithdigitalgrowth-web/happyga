@@ -62,6 +62,10 @@ function getOtpErrorMessage(error, isNative = false) {
     message = 'OTP expired. Tap Resend OTP and enter the latest code.';
   }
 
+  if (isNative && code) {
+    return `${message} [${code}]`;
+  }
+
   if (!isLocalDebugHost() || !code) {
     return message;
   }

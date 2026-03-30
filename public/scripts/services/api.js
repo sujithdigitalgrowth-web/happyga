@@ -1,13 +1,56 @@
 import { buildApiHeaders } from './auth.js';
 
-const NATIVE_API_BASE_URL = 'http://192.168.0.5:3000';
+const NATIVE_API_BASE_URLS = [
+  'http://192.168.1.179:3000',
+  'http://192.168.0.5:3000',
+  'http://10.0.2.2:3000',
+];
+
+let nativeResolvedBaseUrl = null;
+
+function isNativePlatform() {
+  return Boolean(window.Capacitor?.isNativePlatform?.());
+}
+
+function normalizeBaseUrl(url) {
+  return String(url || '').replace(/\/+$/, '');
+}
+
+function getNativeBaseCandidates() {
+  const candidates = [];
+  if (nativeResolvedBaseUrl) candidates.push(nativeResolvedBaseUrl);
+  for (const url of NATIVE_API_BASE_URLS) {
+    if (!candidates.includes(url)) candidates.push(url);
+  }
+  return candidates.map(normalizeBaseUrl).filter(Boolean);
+}
 
 function getApiBaseUrl() {
-  return window.Capacitor?.isNativePlatform?.() ? NATIVE_API_BASE_URL : '';
+  if (!isNativePlatform()) return '';
+  return normalizeBaseUrl(nativeResolvedBaseUrl || NATIVE_API_BASE_URLS[0]);
 }
 
 export function buildApiUrl(path) {
   return `${getApiBaseUrl()}${path}`;
+}
+
+export async function apiFetch(path, options = {}) {
+  if (!isNativePlatform()) {
+    return fetch(path, options);
+  }
+
+  let lastError = null;
+  for (const baseUrl of getNativeBaseCandidates()) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`, options);
+      nativeResolvedBaseUrl = baseUrl;
+      return response;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Unable to reach backend API from Android app');
 }
 
 async function readJsonResponse(response) {
@@ -23,7 +66,7 @@ async function readJsonResponse(response) {
 
 export async function fetchWallet(authState) {
   return readJsonResponse(
-    await fetch(buildApiUrl('/api/wallet'), {
+    await apiFetch('/api/wallet', {
       headers: buildApiHeaders(authState),
     }),
   );
@@ -31,7 +74,7 @@ export async function fetchWallet(authState) {
 
 export async function rechargeWallet(authState, payload) {
   return readJsonResponse(
-    await fetch(buildApiUrl('/api/wallet/recharge'), {
+    await apiFetch('/api/wallet/recharge', {
       method: 'POST',
       headers: buildApiHeaders(authState, {
         'Content-Type': 'application/json',
@@ -43,7 +86,7 @@ export async function rechargeWallet(authState, payload) {
 
 export async function startDemoCall(authState, username) {
   return readJsonResponse(
-    await fetch(buildApiUrl('/api/calls/preflight'), {
+    await apiFetch('/api/calls/preflight', {
       method: 'POST',
       headers: buildApiHeaders(authState, {
         'Content-Type': 'application/json',
@@ -59,7 +102,7 @@ export async function startDemoCall(authState, username) {
  */
 export async function ringUserPhone(username) {
   return readJsonResponse(
-    await fetch(buildApiUrl(`/api/calls/ring/${encodeURIComponent(username)}`), {
+    await apiFetch(`/api/calls/ring/${encodeURIComponent(username)}`, {
       method: 'POST',
     }),
   );
@@ -67,7 +110,7 @@ export async function ringUserPhone(username) {
 
 export async function fetchSessions(authState) {
   return readJsonResponse(
-    await fetch(buildApiUrl('/api/sessions'), {
+    await apiFetch('/api/sessions', {
       headers: buildApiHeaders(authState),
     }),
   );
@@ -75,7 +118,7 @@ export async function fetchSessions(authState) {
 
 export async function saveSession(authState, session) {
   return readJsonResponse(
-    await fetch(buildApiUrl('/api/sessions'), {
+    await apiFetch('/api/sessions', {
       method: 'POST',
       headers: buildApiHeaders(authState, {
         'Content-Type': 'application/json',
