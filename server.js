@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express');
+const cors = require('cors');
 
 require('dotenv').config();
 
@@ -9,6 +10,14 @@ const sessionRoutes = require('./src/routes/sessions');
 const callRoutes    = require('./src/routes/calls');
 
 const app = express();
+
+// Allow requests from Capacitor Android app and any HTTPS client
+app.use(cors({
+  origin: (origin, cb) => cb(null, true),
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Uid', 'X-Token'],
+}));
+app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
