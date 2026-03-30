@@ -3,15 +3,25 @@ const admin = require('firebase-admin');
 if (!admin.apps.length) {
   let credential;
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+    try {
+      credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+    } catch (e) {
+      console.error('[firebase-admin] Invalid FIREBASE_SERVICE_ACCOUNT JSON:', e.message);
+    }
   } else {
-    // eslint-disable-next-line global-require
-    credential = admin.credential.cert(require('../serviceAccountKey.json'));
+    try {
+      // eslint-disable-next-line global-require
+      credential = admin.credential.cert(require('../serviceAccountKey.json'));
+    } catch {
+      console.warn('[firebase-admin] serviceAccountKey.json not found and FIREBASE_SERVICE_ACCOUNT env var not set. Firebase features will be unavailable.');
+    }
   }
-  admin.initializeApp({ credential });
+  if (credential) {
+    admin.initializeApp({ credential });
+  }
 }
 
-const db = admin.firestore();
-const auth = admin.auth();
+const db = admin.apps.length ? admin.firestore() : null;
+const auth = admin.apps.length ? admin.auth() : null;
 
 module.exports = { admin, db, auth };

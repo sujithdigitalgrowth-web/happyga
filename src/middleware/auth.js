@@ -15,7 +15,7 @@ function toPositiveInteger(value) {
 async function resolveUserIdentity(req) {
   // Try Firebase ID token first (Authorization: Bearer <token>)
   const authHeader = req.get('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ') && auth) {
     const idToken = authHeader.slice(7);
     try {
       const decoded = await auth.verifyIdToken(idToken);
