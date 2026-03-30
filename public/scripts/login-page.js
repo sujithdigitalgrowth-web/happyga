@@ -1,10 +1,5 @@
 import { loadFragments } from './shared/fragment-loader.js';
 import { writeAuthState } from './services/auth.js';
-import { firebaseAuth } from './firebase.js';
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 
 function getNativeFirebaseAuthPlugin() {
   const capacitor = window.Capacitor;
@@ -96,12 +91,10 @@ async function init() {
     statusText.textContent = message;
   }
 
-  function setupRecaptcha() {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, sendOtpBtn, {
-        size: 'invisible',
-      });
-    }
+  if (!nativeApp) {
+    sendOtpBtn.disabled = true;
+    phoneInput.disabled = true;
+    showStatus('OTP is enabled only in the Android app build. Open the app on device/emulator to continue.');
   }
 
   async function completeLogin({ uid, phoneNumber, getToken }) {
@@ -152,41 +145,24 @@ async function init() {
     showStatus('Sending OTP...');
     currentPhone = phone;
 
-    if (nativeApp) {
-      if (!nativeFirebaseAuth) {
-        showStatus('Native phone authentication is unavailable. Run cap sync and rebuild the app.');
-        return;
-      }
-
-      try {
-        await setupNativePhoneListeners();
-        await nativeFirebaseAuth.signInWithPhoneNumber({
-          phoneNumber: `+91${phone}`,
-        });
-      } catch (err) {
-        console.error('Native OTP send error:', err);
-        showStatus(getOtpErrorMessage(err, true));
-      }
+    if (!nativeApp) {
+      showStatus('OTP is enabled only in the Android app build.');
       return;
     }
 
-    setupRecaptcha();
+    if (!nativeFirebaseAuth) {
+      showStatus('Native phone authentication is unavailable. Run cap sync and rebuild the app.');
+      return;
+    }
+
     try {
-      confirmationResult = await signInWithPhoneNumber(
-        firebaseAuth,
-        `+91${phone}`,
-        window.recaptchaVerifier,
-      );
-      otpForm.classList.remove('hidden');
-      otpHint.textContent = `OTP sent to +91 ${phone}`;
-      showStatus('');
-      otpInput.value = '';
-      otpInput.focus();
+      await setupNativePhoneListeners();
+      await nativeFirebaseAuth.signInWithPhoneNumber({
+        phoneNumber: `+91${phone}`,
+      });
     } catch (err) {
-      console.error('Web OTP send error:', err);
-      window.recaptchaVerifier?.clear();
-      window.recaptchaVerifier = null;
-      showStatus(getOtpErrorMessage(err));
+      console.error('Native OTP send error:', err);
+      showStatus(getOtpErrorMessage(err, true));
     }
   }
 
@@ -215,40 +191,28 @@ async function init() {
       return;
     }
 
-    if (!confirmationResult) {
-      if (!nativeFirebaseAuth || !nativeVerificationId) {
-        showStatus('Request OTP first.');
-        return;
-      }
+    if (!nativeVerificationId) {
+      showStatus('Request OTP first.');
+      return;
     }
+
     showStatus('Verifying...');
     try {
-      if (nativeFirebaseAuth) {
-        const result = await nativeFirebaseAuth.confirmVerificationCode({
-          verificationId: nativeVerificationId,
-          verificationCode: enteredOtp,
-        });
-        await completeLogin({
-          uid: result.user?.uid,
-          phoneNumber: result.user?.phoneNumber,
-          getToken: async () => {
-            const tokenResult = await nativeFirebaseAuth.getIdToken({ forceRefresh: true });
-            return tokenResult.token;
-          },
-        });
-        return;
-      }
-
-      const result = await confirmationResult.confirm(enteredOtp);
-      const user = result.user;
+      const result = await nativeFirebaseAuth.confirmVerificationCode({
+        verificationId: nativeVerificationId,
+        verificationCode: enteredOtp,
+      });
       await completeLogin({
-        uid: user.uid,
-        phoneNumber: user.phoneNumber,
-        getToken: async () => user.getIdToken(),
+        uid: result.user?.uid,
+        phoneNumber: result.user?.phoneNumber,
+        getToken: async () => {
+          const tokenResult = await nativeFirebaseAuth.getIdToken({ forceRefresh: true });
+          return tokenResult.token;
+        },
       });
     } catch (err) {
       console.error('OTP verification error:', err);
-      showStatus(getOtpErrorMessage(err));
+      showStatus(getOtpErrorMessage(err, true));
     }
   });
 
@@ -257,10 +221,6 @@ async function init() {
     if (!phone || phone.length !== 10) {
       showStatus('Enter your phone number first.');
       return;
-    }
-    if (!nativeFirebaseAuth) {
-      window.recaptchaVerifier?.clear();
-      window.recaptchaVerifier = null;
     }
     await sendOtp(phone);
   });
