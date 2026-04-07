@@ -23,6 +23,7 @@ async function callByNumber(req, res) {
 /**
  * POST /api/call/:username
  * Looks up the user's registered phone and calls it automatically.
+ * If listenerPhone is provided in the body (from main backend), uses that directly.
  */
 async function callByUsername(req, res) {
   const username = String(req.params.username || '').trim().toLowerCase();
@@ -30,8 +31,19 @@ async function callByUsername(req, res) {
     return res.status(400).json({ success: false, error: 'Username is required' });
   }
 
-  const phone = getPhoneByUsername(username);
-  if (!phone) {
+  const { listenerPhone, listenerId, listenerName, target, statusCallbackUrl, timeLimit } = req.body || {};
+
+  const outboundTarget = listenerPhone || getPhoneByUsername(username);
+
+  console.log('Call request — listenerId:', listenerId);
+  console.log('Call request — listenerName:', listenerName);
+  console.log('Call request — listenerPhone:', listenerPhone);
+  console.log('Call request — target:', target);
+  console.log('Call request — outboundTarget:', outboundTarget);
+  console.log('Call request — statusCallbackUrl:', statusCallbackUrl);
+  console.log('Call request — timeLimit:', timeLimit);
+
+  if (!outboundTarget) {
     return res.status(404).json({
       success: false,
       error: `No phone number registered for @${username}`,
@@ -39,7 +51,14 @@ async function callByUsername(req, res) {
   }
 
   try {
-    const result = await makeCall(phone);
+    const callOptions = {};
+    if (statusCallbackUrl) {
+      callOptions.statusCallback = statusCallbackUrl;
+    }
+    if (timeLimit && Number(timeLimit) > 0) {
+      callOptions.timeLimit = Number(timeLimit);
+    }
+    const result = await makeCall(outboundTarget, callOptions);
     return res.json({ success: true, username, ...result });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

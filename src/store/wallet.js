@@ -1,5 +1,5 @@
 const { db } = require('../firebase-admin');
-const { DEFAULT_STARTING_COINS, CALL_COST_COINS, LISTENER_PAYOUT_RATE } = require('../config');
+const { DEFAULT_STARTING_COINS } = require('../config');
 
 function walletRef(user) {
   return db.collection('users').doc(user.uid);
@@ -11,9 +11,11 @@ function buildResponse(balance, user) {
     currency: 'coins',
     authMode: user.authMode,
     storage: 'firestore',
-    callCostCoins: CALL_COST_COINS,
-    listenerPayoutRate: LISTENER_PAYOUT_RATE,
-    listenerPayoutCoins: Number((CALL_COST_COINS * LISTENER_PAYOUT_RATE).toFixed(1)),
+    billing: {
+      model: 'duration-based',
+      minimumCoinsToStart: 1,
+      coinPerSeconds: 10,
+    },
   };
 }
 

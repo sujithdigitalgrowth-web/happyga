@@ -92,7 +92,11 @@ export async function startDemoCall(authState, username) {
       headers: buildApiHeaders(authState, {
         'Content-Type': 'application/json',
       }),
-      body: JSON.stringify({ to: username }),
+      body: JSON.stringify({
+        to: username,
+        listenerId: localStorage.getItem('selectedListenerId'),
+        listenerName: localStorage.getItem('selectedListenerName'),
+      }),
     }),
   );
 }
@@ -166,5 +170,33 @@ export async function getWithdrawals(authState) {
     await apiFetch('/api/withdrawals', {
       headers: buildApiHeaders(authState),
     }),
+  );
+}
+
+export async function updateListenerStatus(authState, isOnline) {
+  return apiFetch('/api/listener-status', {
+    method: 'POST',
+    authState,
+    body: JSON.stringify({ isOnline }),
+  });
+}
+
+export async function getListeners(authState) {
+  return apiFetch('/api/listeners', {
+    method: 'GET',
+    authState,
+  });
+}
+
+export async function getListenerSessions(authState) {
+  return apiFetch('/api/listener-sessions', {
+    method: 'GET',
+    authState,
+  });
+}
+
+export async function getCallStatus(callSid) {
+  return readJsonResponse(
+    await apiFetch(`/api/calls/status/${encodeURIComponent(callSid)}`),
   );
 }

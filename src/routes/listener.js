@@ -38,7 +38,7 @@ router.post('/listener-profile', async (req, res) => {
   try {
     // Firestore set can hang due to gRPC issues — race with a timeout
     await Promise.race([
-      db.collection('ListenerProfiles').doc(user.uid).set(data),
+      db.collection('listenerProfiles').doc(user.uid).set(data),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore write timed out')), 8000)),
     ]);
   } catch (err) {
@@ -55,7 +55,7 @@ router.get('/listener-profile', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'Authentication required' });
 
   try {
-    const doc = await db.collection('ListenerProfiles').doc(user.uid).get();
+    const doc = await db.collection('listenerProfiles').doc(user.uid).get();
     if (!doc.exists) {
       return res.json({ success: true, profile: null });
     }
@@ -63,6 +63,61 @@ router.get('/listener-profile', async (req, res) => {
   } catch (err) {
     console.error('Firestore read error:', err.message);
     return res.status(500).json({ error: 'Failed to fetch listener profile' });
+  }
+});
+
+router.post('/listener-status', async (req, res) => {
+  const uid = req.user?.uid;
+  if (!uid) return res.status(401).json({ error: 'Authentication required' });
+
+  const { isOnline } = req.body;
+
+  try {
+    await db.collection('listenerProfiles').doc(uid).update({
+      isOnline: isOnline,
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to update listener status:', err.message);
+    return res.status(500).json({ error: 'Failed to update listener status' });
+  }
+});
+
+router.get('/listeners', async (_req, res) => {
+  try {
+    const snapshot = await db.collection('listenerProfiles')
+      .where('status', '==', 'approved')
+      .get();
+
+    const listeners = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    return res.json({
+      success: true,
+      listeners,
+    });
+  } catch (err) {
+    console.error('Failed to fetch listeners:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch listeners' });
+  }
+});
+
+router.get('/listener-sessions', async (req, res) => {
+  const user = await resolveUserIdentity(req);
+  if (!user) return res.status(401).json({ error: 'Authentication required' });
+
+  try {
+    const snapshot = await db.collection('listenerProfiles').doc(user.uid)
+      .collection('sessions')
+      .orderBy('completedAt', 'desc')
+      .limit(20)
+      .get();
+
+    const sessions = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return res.json({ success: true, sessions });
+  } catch (err) {
+    console.error('Failed to fetch listener sessions:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch listener sessions' });
   }
 });
 

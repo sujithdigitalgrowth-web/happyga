@@ -19,7 +19,7 @@ router.post('/', async (req, res) => {
   }
 
   // Fetch listener profile and validate
-  const listenerRef = db.collection('ListenerProfiles').doc(user.uid);
+  const listenerRef = db.collection('listenerProfiles').doc(user.uid);
   const listenerDoc = await listenerRef.get();
 
   if (!listenerDoc.exists) {
@@ -56,13 +56,18 @@ router.get('/', async (req, res) => {
   const user = await resolveUserIdentity(req);
   if (!user) return res.status(401).json({ error: 'Authentication required' });
 
-  const snapshot = await db.collection('withdrawalRequests')
-    .where('listenerId', '==', user.uid)
-    .orderBy('createdAt', 'desc')
-    .get();
+  try {
+    const snapshot = await db.collection('withdrawalRequests')
+      .where('listenerId', '==', user.uid)
+      .orderBy('createdAt', 'desc')
+      .get();
 
-  const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  return res.json({ success: true, requests });
+    const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return res.json({ success: true, requests });
+  } catch (err) {
+    console.error('Failed to fetch withdrawals:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch withdrawals' });
+  }
 });
 
 router.get('/admin', async (req, res) => {

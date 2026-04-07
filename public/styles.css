@@ -191,6 +191,7 @@ button:hover {
 }
 
 .wallet-balance-text {
+  display: none;
   font-weight: 700;
   color: var(--ink);
 }
@@ -233,11 +234,11 @@ button:hover {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(207, 122, 40, 0.1);
-  color: #4d3400;
-  border: 2px solid rgba(207, 122, 40, 0.3);
+  background: linear-gradient(135deg, #fff6ea, #ffefd8);
+  color: #3c250f;
+  border: 2px solid rgba(207, 122, 40, 0.45);
   border-radius: 24px;
-  padding: 8px 18px 8px 12px;
+  padding: 8px 14px 8px 10px;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
@@ -249,15 +250,23 @@ button:hover {
 }
 
 .coins-btn-icon {
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   display: block;
 }
 
+.coins-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7b4d1f;
+  letter-spacing: 0.02em;
+}
+
 .coins-count {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
-  color: #4d3400;
+  color: #2b1a0b;
+  line-height: 1;
 }
 
 .recharge-hint {
@@ -609,6 +618,16 @@ button:hover {
   transform: none;
 }
 
+.call-btn-loading {
+  opacity: 0.4;
+  animation: call-btn-pulse 1s ease-in-out infinite;
+}
+
+@keyframes call-btn-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
 .call-btn-icon {
   width: 100%;
   height: 100%;
@@ -631,6 +650,44 @@ button:hover {
 .profile-form {
   display: grid;
   gap: 14px;
+}
+
+/* Interest chips */
+.chip-hint {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.interest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.interest-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(207, 122, 40, 0.25);
+  background: rgba(207, 122, 40, 0.06);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.interest-chip.selected {
+  background: linear-gradient(135deg, #F37321, #FAB34A);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(243, 115, 33, 0.25);
+}
+
+.interest-chip:disabled:not(.selected) {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .profile-summary {
@@ -679,44 +736,353 @@ button:hover {
 }
 
 .listener-dashboard {
-  padding: 16px;
-  border-radius: 16px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(207, 122, 40, 0.16);
 }
 
+.listener-dashboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .listener-dashboard h3 {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--ink);
-  margin: 0 0 12px;
+  margin: 0;
 }
 
-.dashboard-stats {
+.listener-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.listener-status-badge.online {
+  background: rgba(46, 125, 50, 0.1);
+  color: #2e7d32;
+}
+
+.listener-status-badge.offline {
+  background: rgba(0, 0, 0, 0.06);
+  color: #888;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.listener-status-badge.online .status-dot {
+  background: #2e7d32;
+  box-shadow: 0 0 4px rgba(46, 125, 50, 0.5);
+}
+
+.listener-status-badge.offline .status-dot {
+  background: #aaa;
+}
+
+/* Stat cards */
+.dashboard-stat-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-card {
+  padding: 10px;
+  border-radius: 10px;
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1px;
 }
 
-.dashboard-stats p {
-  font-size: 13px;
+.stat-card--earned {
+  background: linear-gradient(135deg, rgba(243, 115, 33, 0.07), rgba(250, 179, 74, 0.10));
+  border: 1px solid rgba(243, 115, 33, 0.12);
+}
+
+.stat-card--available {
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.07), rgba(76, 175, 80, 0.10));
+  border: 1px solid rgba(46, 125, 50, 0.12);
+}
+
+.stat-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-soft);
+}
+
+.stat-card-value {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.stat-card--earned .stat-card-value {
+  color: #d35400;
+}
+
+.stat-card--available .stat-card-value {
+  color: #2e7d32;
+}
+
+/* Recent calls */
+.listener-recent-calls {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding-top: 8px;
+}
+
+.recent-calls-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.recent-calls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.recent-calls-empty {
+  font-size: 11px;
   color: var(--ink-soft);
   margin: 0;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.recent-call-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.025);
+}
+
+.recent-call-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recent-call-duration {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.recent-call-coins {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2e7d32;
+}
+
+.recent-call-time {
+  font-size: 10px;
+  color: var(--ink-soft);
 }
 
 .withdraw-msg {
   font-size: 12px;
   color: #2e7d32;
-  margin-top: 8px;
-}
+  margin: 0;
 }
 
-.dashboard-stats strong {
-  color: var(--ink);
+.primary-btn,
+.secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #F37321, #FAB34A);
+  color: #fff;
+  box-shadow: 0 10px 16px rgba(151, 89, 29, 0.2);
+}
+
+.secondary-btn {
+  background: rgba(207, 122, 40, 0.08);
+  color: #8c5e2f;
+  border-color: rgba(207, 122, 40, 0.3);
+}
+
+#switchListenerModeBtn {
+  white-space: nowrap;
+}
+
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.dashboard-actions .primary-btn,
+.dashboard-actions .secondary-btn {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 6px;
+  font-size: 12px;
+}
+
+#listenerModeSection {
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(207, 122, 40, 0.16);
+}
+
+#listenerModeSection h3 {
+  margin: 0 0 8px;
   font-size: 18px;
-  display: block;
-  margin-top: 2px;
+}
+
+#listenerModeSection p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+#listenerStatusText {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.listener-mode-actions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.listener-mode-actions .primary-btn,
+.listener-mode-actions .secondary-btn {
+  width: 100%;
+  min-width: 0;
+}
+
+.withdrawal-modal {
+  display: grid;
+  gap: 12px;
+}
+
+.withdraw-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.withdraw-error {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: #c62828;
+  font-weight: 700;
+}
+
+.withdraw-history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.withdraw-history-list li {
+  background: rgba(207, 122, 40, 0.08);
+  border: 1px solid rgba(207, 122, 40, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.withdraw-history-item {
+  display: grid;
+  gap: 6px;
+}
+
+.withdraw-history-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.withdraw-history-amount {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.withdraw-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.withdraw-status-badge.pending {
+  color: #8a5300;
+  background: rgba(243, 115, 33, 0.16);
+}
+
+.withdraw-status-badge.approved {
+  color: #1f6f3a;
+  background: rgba(76, 175, 80, 0.16);
+}
+
+.withdraw-status-badge.rejected {
+  color: #9e2020;
+  background: rgba(244, 67, 54, 0.16);
+}
+
+.withdraw-history-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.withdraw-history-empty {
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink-soft);
 }
 
 .menu-chevron {
@@ -848,6 +1214,28 @@ button:hover {
   color: var(--ink-soft);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.call-screen-timer {
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--teal);
+  margin: 4px 0;
+}
+
+.call-screen-summary {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 4px 0 0;
+}
+
+.call-screen-status.is-connected {
+  color: var(--teal);
+}
+
+.call-screen-status.is-ended {
+  color: var(--ink);
 }
 
 .call-screen-phone-row {
@@ -1204,13 +1592,19 @@ button:hover {
 
 .session-item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   gap: 12px;
-  align-items: center;
+  align-items: start;
   padding: 12px;
   border: 1px solid rgba(207, 122, 40, 0.16);
   border-radius: 16px;
   background: rgba(207, 122, 40, 0.06);
+}
+
+.session-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .session-avatar {
@@ -1247,6 +1641,34 @@ button:hover {
   font-size: 12px;
   font-weight: 700;
   color: var(--teal);
+}
+
+.session-status {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.session-status-ok {
+  color: var(--teal);
+}
+
+.session-status-fail {
+  color: #c95b34;
+}
+
+.session-time {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+
+.session-low-balance {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b8860b;
 }
 
 .empty-state {

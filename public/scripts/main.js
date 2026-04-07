@@ -12,26 +12,10 @@ import {
   fetchSessions,
   fetchWallet,
   rechargeWallet,
-  saveSession,
   startDemoCall,
   apiFetch,
+  getCallStatus,
 } from './services/api.js';
-
-const DEFAULT_CALL_COST_COINS = 6;
-const BUSY_SIMULATION_RATE = 0.35;
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function buildSessionEntry(profile, duration) {
-  return {
-    name: profile.name,
-    username: profile.username,
-    duration,
-    when: `Today • ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`,
-  };
-}
 
 async function init() {
   await loadFragments();
@@ -74,10 +58,161 @@ async function init() {
   const callScreenPhoneInput = document.getElementById('callScreenPhoneInput');
   const callScreenDialBtn = document.getElementById('callScreenDialBtn');
   const callScreenDialStatus = document.getElementById('callScreenDialStatus');
+  const callScreenTimer = document.getElementById('callScreenTimer');
+  const callScreenSummary = document.getElementById('callScreenSummary');
+
+  // --- Call state machine ---
+  let callState = 'idle'; // idle | calling | ringing | connected | ended | failed
+  let callTimerInterval = null;
+  let callTimerSeconds = 0;
+  let callPollInterval = null;
+  let activeCallSid = null;
+
+  function formatTimer(sec) {
+    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function startCallTimer() {
+    callTimerSeconds = 0;
+    if (callScreenTimer) {
+      callScreenTimer.textContent = '00:00';
+      callScreenTimer.classList.remove('hidden');
+    }
+    callTimerInterval = setInterval(() => {
+      callTimerSeconds++;
+      if (callScreenTimer) callScreenTimer.textContent = formatTimer(callTimerSeconds);
+    }, 1000);
+  }
+
+  function stopCallTimer() {
+    if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null; }
+  }
+
+  function stopCallPolling() {
+    if (callPollInterval) { clearInterval(callPollInterval); callPollInterval = null; }
+  }
+
+  function setCallState(newState, extra = {}) {
+    callState = newState;
+    if (!callScreenStatus || !callScreenNote) return;
+
+    // Reset classes
+    callScreenStatus.className = 'call-screen-status';
+    if (callScreenTimer) callScreenTimer.classList.add('hidden');
+    if (callScreenSummary) callScreenSummary.classList.add('hidden');
+    callScreenBuyBtn?.classList.add('hidden');
+
+    switch (newState) {
+      case 'calling':
+        callScreenStatus.textContent = 'Calling...';
+        callScreenStatus.classList.add('is-calling');
+        callScreenNote.textContent = 'Trying to connect now.';
+        break;
+      case 'ringing':
+        callScreenStatus.textContent = 'Ringing...';
+        callScreenStatus.classList.add('is-calling');
+        callScreenNote.textContent = extra.note || 'Waiting for answer.';
+        break;
+      case 'connected':
+        callScreenStatus.textContent = 'Connected';
+        callScreenStatus.classList.add('is-connected');
+        callScreenNote.textContent = '1 coin per 10 seconds';
+        if (callScreenTimer) callScreenTimer.classList.remove('hidden');
+        break;
+      case 'ended':
+        stopCallTimer();
+        stopCallPolling();
+        callScreenStatus.textContent = 'Call ended';
+        callScreenStatus.classList.add('is-ended');
+        callScreenNote.textContent = '';
+        if (callScreenTimer) {
+          callScreenTimer.textContent = formatTimer(extra.durationSeconds || callTimerSeconds);
+          callScreenTimer.classList.remove('hidden');
+        }
+        if (callScreenSummary) {
+          const dur = extra.durationSeconds || callTimerSeconds;
+          const coins = extra.chargedCoins ?? Math.ceil(dur / 10);
+          const parts = [`Duration: ${formatTimer(dur)}`, `Charged: ${coins} coin${coins !== 1 ? 's' : ''}`];
+          if (extra.endedDueToLowBalance) parts.push('(ended — low balance)');
+          callScreenSummary.textContent = parts.join('  •  ');
+          callScreenSummary.classList.remove('hidden');
+        }
+        break;
+      case 'failed':
+        stopCallTimer();
+        stopCallPolling();
+        callScreenStatus.textContent = extra.statusLabel || 'Call failed';
+        callScreenStatus.classList.add('is-busy');
+        callScreenNote.textContent = extra.note || 'Try again later.';
+        if (extra.showBuy) callScreenBuyBtn?.classList.remove('hidden');
+        break;
+    }
+  }
+
+  function startCallPolling(callSid) {
+    activeCallSid = callSid;
+    let wasConnected = false;
+
+    callPollInterval = setInterval(async () => {
+      try {
+        const s = await getCallStatus(callSid);
+
+        // in-progress = answered
+        if (s.status === 'in-progress' && callState !== 'connected') {
+          wasConnected = true;
+          setCallState('connected');
+          startCallTimer();
+        }
+
+        // finalized
+        if (s.finalized) {
+          if (s.answered && s.durationSeconds > 0) {
+            setCallState('ended', {
+              durationSeconds: s.durationSeconds,
+              chargedCoins: s.chargedCoins,
+              endedDueToLowBalance: s.endedDueToLowBalance,
+            });
+          } else {
+            const labels = { busy: 'User is busy', 'no-answer': 'No answer', failed: 'Call failed', canceled: 'Call canceled' };
+            setCallState('failed', {
+              statusLabel: labels[s.finalStatus] || 'Call ended',
+              note: s.finalStatus === 'busy' ? 'Try another profile or call again in a moment.' : 'The call could not be completed.',
+            });
+          }
+          return;
+        }
+
+        // terminal Twilio statuses before finalized (edge case)
+        const terminalStatuses = new Set(['busy', 'no-answer', 'failed', 'canceled']);
+        if (terminalStatuses.has(s.status) && callState !== 'failed' && callState !== 'ended') {
+          const labels = { busy: 'User is busy', 'no-answer': 'No answer', failed: 'Call failed', canceled: 'Call canceled' };
+          setCallState('failed', {
+            statusLabel: labels[s.status] || 'Call ended',
+            note: s.status === 'busy' ? 'Try another profile or call again in a moment.' : 'The call could not be completed.',
+          });
+        }
+
+        if (s.status === 'completed' && callState !== 'ended' && callState !== 'failed') {
+          if (wasConnected || s.answered) {
+            setCallState('ended', {
+              durationSeconds: s.durationSeconds || callTimerSeconds,
+              chargedCoins: s.chargedCoins || Math.ceil((s.durationSeconds || callTimerSeconds) / 10),
+              endedDueToLowBalance: s.endedDueToLowBalance,
+            });
+          } else {
+            setCallState('failed', { statusLabel: 'No answer', note: 'The call could not be completed.' });
+          }
+        }
+      } catch {
+        // polling error — ignore, retry next tick
+      }
+    }, 2000);
+  }
 
   let walletState = {
     balance: 0,
-    callCostCoins: DEFAULT_CALL_COST_COINS,
     storage: 'memory',
   };
 
@@ -88,7 +223,7 @@ async function init() {
     };
 
     walletBalanceText.textContent = `${walletState.balance} coins available`;
-    callStatusText.textContent = `Demo calls reserve ${walletState.callCostCoins} coins before connecting.`;
+    callStatusText.textContent = 'Minimum 1 coin needed to start. After answer, 1 coin is charged per 10 seconds.';
 
     const coinsBadge = document.getElementById('coinsBadge');
     if (coinsBadge) coinsBadge.textContent = walletState.balance;
@@ -105,33 +240,28 @@ async function init() {
     }
 
     callScreenTitle.textContent = `Calling @${profile.username}`;
-    callScreenStatus.textContent = 'Calling...';
-    callScreenStatus.classList.add('is-calling');
-    callScreenStatus.classList.remove('is-busy', 'is-recharge');
-    callScreenNote.textContent = 'Trying to connect now.';
-    callScreenBuyBtn.classList.add('hidden');
     if (callScreenPhoneRow) callScreenPhoneRow.classList.remove('hidden');
     if (callScreenDialStatus) { callScreenDialStatus.textContent = ''; callScreenDialStatus.className = 'call-screen-dial-status'; }
     callScreenModal.classList.remove('hidden');
-  }
-
-  function setCallScreenState({ status, note, state = 'calling', showBuy = false }) {
-    if (!callScreenStatus || !callScreenNote || !callScreenBuyBtn) {
-      return;
-    }
-
-    callScreenStatus.textContent = status;
-    callScreenStatus.classList.toggle('is-calling', state === 'calling');
-    callScreenStatus.classList.toggle('is-busy', state === 'busy');
-    callScreenStatus.classList.toggle('is-recharge', state === 'recharge');
-    callScreenNote.textContent = note;
-    callScreenBuyBtn.classList.toggle('hidden', !showBuy);
+    setCallState('calling');
   }
 
   function closeCallScreen() {
+    stopCallTimer();
+    stopCallPolling();
+    callState = 'idle';
+    activeCallSid = null;
     if (callScreenModal) {
       callScreenModal.classList.add('hidden');
     }
+    // Re-enable all call buttons (except offline ones)
+    document.querySelectorAll('.call-btn[data-user]').forEach((btn) => {
+      if (!btn.hasAttribute('aria-disabled')) {
+        btn.disabled = false;
+        btn.classList.remove('call-btn-loading');
+        btn.removeAttribute('aria-busy');
+      }
+    });
   }
 
   function needsRecharge(message) {
@@ -143,62 +273,45 @@ async function init() {
 
   const homePage = createHomePage({
     listElement: profilesList,
+    authState,
     onStartCall: async (profile, button) => {
+      // Prevent duplicate call attempts
+      if (callState !== 'idle') return;
+
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
+      button.classList.add('call-btn-loading');
       openCallScreen(profile);
 
       try {
-        await sleep(900);
+        const preflight = await startDemoCall(authState, profile.username);
+        updateWalletUi(preflight.wallet);
 
-        if (Math.random() < BUSY_SIMULATION_RATE) {
-          const busyMessage = `@${profile.username} is busy right now.`;
-          callStatusText.textContent = busyMessage;
-          setCallScreenState({
-            status: 'User is busy',
-            note: 'Try another profile or call again in a moment.',
-            state: 'busy',
-          });
+        if (!preflight.callSid || !preflight.allowed) {
+          setCallState('failed', { statusLabel: 'Call failed', note: preflight.note || 'Could not place the call.' });
           return;
         }
 
-        const preflight = await startDemoCall(authState, profile.username);
-        updateWalletUi(preflight.wallet);
-        callStatusText.textContent = preflight.note;
-        setCallScreenState({
-          status: 'Calling...',
-          note: preflight.note,
-          state: 'calling',
-        });
+        // Preflight succeeded — move to ringing
+        setCallState('ringing', { note: preflight.note });
 
-        const session = buildSessionEntry(profile, preflight.estimatedDuration);
-        sessionsPage.addSession(session);
-
-        try {
-          await saveSession(authState, session);
-        } catch (error) {
-          callStatusText.textContent = `${preflight.note} Session save failed: ${error.message}`;
-        }
+        // Start polling call status
+        startCallPolling(preflight.callSid);
       } catch (error) {
-        callStatusText.textContent = error.message;
-
         if (needsRecharge(error.message)) {
-          setCallScreenState({
-            status: 'Recharge required',
+          setCallState('failed', {
+            statusLabel: 'Recharge required',
             note: 'Your coins are low. Recharge now to start this call.',
-            state: 'recharge',
             showBuy: true,
           });
         } else {
-          setCallScreenState({
-            status: 'Call failed',
-            note: error.message,
-            state: 'busy',
-          });
+          setCallState('failed', { statusLabel: 'Call failed', note: error.message });
         }
       } finally {
-        button.disabled = false;
+        button.classList.remove('call-btn-loading');
         button.removeAttribute('aria-busy');
+        // Re-enable only if call flow finished (idle means modal was closed)
+        if (callState === 'idle') button.disabled = false;
       }
     },
   });
@@ -243,10 +356,8 @@ async function init() {
       try {
         const wallet = await rechargeWallet(authState, selectedPlan);
         updateWalletUi(wallet);
-        setCallScreenState({
-          status: 'Recharge successful',
+        setCallState('ringing', {
           note: `${wallet.addedCoins} coins added. New balance: ${wallet.balance} coins.`,
-          state: 'calling',
         });
       } catch (error) {
         callStatusText.textContent = error.message;

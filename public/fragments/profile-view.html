@@ -5,9 +5,9 @@
       <h2>Account options</h2>
     </div>
     <div class="profile-summary">
-      <p id="profileSummaryText" class="profile-summary-text">Rahul, 26 • Coffee dates, long drives, tech talks</p>
+      <p id="profileSummaryText" class="profile-summary-text">Rahul, 26 • Casual Chat • Deep Conversations • Timepass / Chill</p>
     </div>
-    <div class="profile-menu">
+    <div class="profile-menu account-options">
       <button id="personalDetailsBtn" class="profile-menu-item" type="button">
         <span>
           <strong>Personal details</strong>
@@ -17,16 +17,37 @@
       </button>
 
       <div id="listenerDashboard" class="listener-dashboard card" style="display:none;">
-        <h3>Listener Dashboard</h3>
-        <div class="dashboard-stats">
-          <p>Coins Earned: <strong id="coinsEarned">0</strong></p>
-          <p>Available Coins: <strong id="availableCoins">0</strong></p>
+        <div class="listener-dashboard-head">
+          <h3>Listener Dashboard</h3>
+          <span id="listenerStatusBadge" class="listener-status-badge offline">
+            <span class="status-dot"></span>
+            <span id="listenerBadgeText">Offline</span>
+          </span>
         </div>
-        <button id="withdrawBtn" class="primary-btn" type="button">Withdraw</button>
+
+        <div class="dashboard-stat-cards">
+          <div class="stat-card stat-card--earned">
+            <span class="stat-card-label">Earned</span>
+            <span class="stat-card-value" id="coinsEarned">0</span>
+          </div>
+          <div class="stat-card stat-card--available">
+            <span class="stat-card-label">Available</span>
+            <span class="stat-card-value" id="availableCoins">0</span>
+          </div>
+        </div>
+
+        <div class="dashboard-actions">
+          <button id="switchListenerModeBtn" class="primary-btn" type="button">Listener Mode</button>
+          <button id="withdrawBtn" class="primary-btn" type="button">Withdraw</button>
+          <button id="openWithdrawalHistoryBtn" class="secondary-btn" type="button">History</button>
+        </div>
         <div id="withdrawMsg" class="withdraw-msg"></div>
-        <div id="withdrawalHistory">
-          <h4>Withdrawal History</h4>
-          <ul id="withdrawalList"></ul>
+
+        <div class="listener-recent-calls">
+          <h4 class="recent-calls-title">Recent Calls</h4>
+          <div id="listenerRecentCallsList" class="recent-calls-list">
+            <p class="recent-calls-empty">No calls yet</p>
+          </div>
         </div>
       </div>
 
@@ -37,14 +58,70 @@
         </span>
         <span class="menu-chevron" aria-hidden="true">›</span>
       </button>
-      <button id="referFriendBtn" class="profile-menu-item" type="button">
-        <span>
-          <strong>Refer a friend</strong>
-          <small>Invite friends and earn bonus coins</small>
-        </span>
-        <span class="menu-chevron" aria-hidden="true">›</span>
-      </button>
     </div>
+
+    <div id="listenerModeSection" style="display: none;">
+      <h3>Listener Mode</h3>
+      <p>Status: <span id="listenerStatusText">Offline</span></p>
+      <div class="listener-mode-actions">
+        <button id="goOnlineBtn" class="primary-btn">Go Online</button>
+        <button id="goOfflineBtn" class="secondary-btn" style="display:none;">Go Offline</button>
+        <button id="backToProfileBtn" class="secondary-btn" type="button">Back to Profile</button>
+      </div>
+      <p style="margin-top:10px;">You will receive calls when you are online</p>
+    </div>
+
     <button id="logoutBtn" class="logout-btn logout-bottom" type="button">Log Out</button>
+  </div>
+
+  <div id="withdrawAmountModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawAmountTitle">
+    <div class="action-modal card withdrawal-modal">
+      <div class="action-modal-head">
+        <div>
+          <p class="eyebrow">Withdraw</p>
+          <h2 id="withdrawAmountTitle">Enter withdrawal amount</h2>
+        </div>
+        <button class="close-btn modal-close-btn" type="button" data-close-modal="withdrawAmountModal" aria-label="Close">✕</button>
+      </div>
+      <p class="withdraw-hint">Minimum withdrawal is Rs 1000.</p>
+      <label class="field-label" for="withdrawAmountInput">
+        <span>Amount (Rs)</span>
+        <input id="withdrawAmountInput" type="number" min="1000" step="1" placeholder="Enter amount" />
+      </label>
+      <p id="withdrawAmountError" class="withdraw-error hidden"></p>
+      <button id="withdrawAmountNextBtn" class="save-btn" type="button">Next</button>
+    </div>
+  </div>
+
+  <div id="withdrawUpiModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawUpiTitle">
+    <div class="action-modal card withdrawal-modal">
+      <div class="action-modal-head">
+        <div>
+          <p class="eyebrow">Withdraw</p>
+          <h2 id="withdrawUpiTitle">Enter UPI ID</h2>
+        </div>
+        <button class="close-btn modal-close-btn" type="button" data-close-modal="withdrawUpiModal" aria-label="Close">✕</button>
+      </div>
+      <p id="withdrawSummaryText" class="withdraw-hint"></p>
+      <label class="field-label" for="withdrawUpiInput">
+        <span>UPI ID</span>
+        <input id="withdrawUpiInput" type="text" placeholder="name@bank" />
+      </label>
+      <p id="withdrawUpiError" class="withdraw-error hidden"></p>
+      <button id="submitWithdrawBtn" class="save-btn" type="button">Submit Withdrawal</button>
+    </div>
+  </div>
+
+  <div id="withdrawHistoryModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawHistoryTitle">
+    <div class="action-modal card withdrawal-modal">
+      <div class="action-modal-head">
+        <div>
+          <p class="eyebrow">Withdraw</p>
+          <h2 id="withdrawHistoryTitle">Withdrawal History</h2>
+        </div>
+        <button class="close-btn modal-close-btn" type="button" data-close-modal="withdrawHistoryModal" aria-label="Close">✕</button>
+      </div>
+      <ul id="withdrawalHistoryList" class="withdraw-history-list"></ul>
+    </div>
   </div>
 </section>
