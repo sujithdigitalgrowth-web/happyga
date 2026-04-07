@@ -58,7 +58,8 @@ async function init() {
   const coinsBtn = document.getElementById('coinsBtn');
   const coinsModal = document.getElementById('coinsModal');
   const closeCoinsBtn = document.getElementById('closeCoinsBtn');
-  const planButtons = Array.from(document.querySelectorAll('.plan-item'));
+  const rechargeHint = document.getElementById('rechargeHint');
+  const planButtons = Array.from(document.querySelectorAll('.coin-pack'));
   const selectedPlanText = document.getElementById('selectedPlanText');
   const buyNowBtn = document.getElementById('buyNowBtn');
   const randomCallBtn = document.getElementById('randomCallBtn');
@@ -90,7 +91,12 @@ async function init() {
     callStatusText.textContent = `Demo calls reserve ${walletState.callCostCoins} coins before connecting.`;
 
     const coinsBadge = document.getElementById('coinsBadge');
-    if (coinsBadge) coinsBadge.textContent = `Coins = ${walletState.balance}`;
+    if (coinsBadge) coinsBadge.textContent = walletState.balance;
+
+    const rechargeHint = document.getElementById('rechargeHint');
+    if (rechargeHint) {
+      rechargeHint.classList.toggle('visible', walletState.balance === 0);
+    }
   }
 
   function openCallScreen(profile) {

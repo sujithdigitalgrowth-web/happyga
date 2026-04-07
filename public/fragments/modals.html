@@ -1,67 +1,65 @@
 <div id="coinsModal" class="coins-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="coinsTitle">
-  <div class="coins-modal card">
+  <div class="coins-modal">
     <div class="coins-modal-head">
-      <div>
-        <p class="eyebrow">Coins</p>
-        <h2 id="coinsTitle">Choose your pack</h2>
+      <div class="coins-modal-head-left">
+        <button id="closeCoinsBtn" class="coins-back-btn" type="button" aria-label="Close">‹</button>
+        <h2 id="coinsTitle">Wallet</h2>
       </div>
-      <button id="closeCoinsBtn" class="close-btn" type="button" aria-label="Close">✕</button>
+      <div class="coins-balance-pill">
+        <img src="assets/icons/coin-mark.svg" alt="" class="coins-balance-icon" />
+        <span id="coinsModalBalance">0</span>
+      </div>
     </div>
-    <p class="coins-desc">Select how many coins you want, then continue with one purchase button.</p>
-    <div id="plansList" class="plans-list" role="listbox" aria-label="Coin plans">
-      <button class="plan-item is-selected" type="button" data-coins="50" data-price="20" aria-selected="true">
-        <div class="plan-left">
-          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
-          <div>
-            <strong>50 Coins</strong>
-            <p>Quick hello pack</p>
-          </div>
-        </div>
-        <span class="plan-price">₹20</span>
+    <div id="plansList" class="plans-grid" role="listbox" aria-label="Coin plans">
+      <button class="coin-pack" type="button" data-coins="50" data-price="41" aria-selected="false">
+        <img class="coin-pack-icon" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">50</span>
+        <span class="coin-pack-price">₹41</span>
       </button>
-      <button class="plan-item" type="button" data-coins="120" data-price="50" aria-selected="false">
-        <div class="plan-left">
-          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
-          <div>
-            <strong>120 Coins</strong>
-            <p>Popular starter</p>
-          </div>
-        </div>
-        <span class="plan-price">₹50</span>
+      <button class="coin-pack" type="button" data-coins="100" data-price="82" aria-selected="false">
+        <img class="coin-pack-icon" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">100</span>
+        <span class="coin-pack-price">₹82</span>
       </button>
-      <button class="plan-item" type="button" data-coins="250" data-price="100" aria-selected="false">
-        <div class="plan-left">
-          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
-          <div>
-            <strong>250 Coins</strong>
-            <p>Weekend bundle</p>
-          </div>
-        </div>
-        <span class="plan-price">₹100</span>
+      <button class="coin-pack" type="button" data-coins="250" data-price="121" aria-selected="false">
+        <img class="coin-pack-icon" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">250</span>
+        <span class="coin-pack-price">₹121</span>
       </button>
-      <button class="plan-item" type="button" data-coins="700" data-price="250" aria-selected="false">
-        <div class="plan-left">
-          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
-          <div>
-            <strong>700 Coins</strong>
-            <p>Power user</p>
-          </div>
-        </div>
-        <span class="plan-price">₹250</span>
+      <button class="coin-pack" type="button" data-coins="550" data-price="251" aria-selected="false">
+        <img class="coin-pack-icon coin-pack-icon--md" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">550</span>
+        <span class="coin-pack-price">₹251</span>
       </button>
-      <button class="plan-item" type="button" data-coins="1500" data-price="499" aria-selected="false">
-        <div class="plan-left">
-          <img class="plan-icon" src="assets/icons/coin-mark.svg" alt="" />
-          <div>
-            <strong>1500 Coins</strong>
-            <p>Unlimited nights</p>
-          </div>
-        </div>
-        <span class="plan-price">₹499</span>
+      <button class="coin-pack" type="button" data-coins="850" data-price="351" aria-selected="false">
+        <img class="coin-pack-icon coin-pack-icon--md" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">850</span>
+        <span class="coin-pack-price">₹351</span>
+      </button>
+      <button class="coin-pack" type="button" data-coins="1350" data-price="551" aria-selected="false">
+        <img class="coin-pack-icon coin-pack-icon--md" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">1350</span>
+        <span class="coin-pack-price">₹551</span>
+      </button>
+      <button class="coin-pack coin-pack--premium" type="button" data-coins="2650" data-price="1051" aria-selected="false">
+        <span class="coin-pack-badge">Super Saver</span>
+        <img class="coin-pack-icon coin-pack-icon--lg" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">2650</span>
+        <span class="coin-pack-price">₹1051</span>
+      </button>
+      <button class="coin-pack coin-pack--premium" type="button" data-coins="4000" data-price="1551" aria-selected="false">
+        <img class="coin-pack-icon coin-pack-icon--lg" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">4000</span>
+        <span class="coin-pack-price">₹1551</span>
+      </button>
+      <button class="coin-pack coin-pack--premium" type="button" data-coins="5500" data-price="2051" aria-selected="false">
+        <img class="coin-pack-icon coin-pack-icon--lg" src="assets/icons/coin-mark.svg" alt="" />
+        <span class="coin-pack-amount">5500</span>
+        <span class="coin-pack-price">₹2051</span>
       </button>
     </div>
     <div class="coins-footer">
-      <p id="selectedPlanText" class="selected-plan-text">Selected: 50 Coins for ₹20</p>
+      <p id="selectedPlanText" class="selected-plan-text">Tap a pack to purchase</p>
       <button id="buyNowBtn" class="buy-now-btn" type="button">Buy Now</button>
     </div>
   </div>
@@ -124,26 +122,113 @@
       </div>
       <button class="close-btn modal-close-btn" type="button" data-close-modal="listenerModal" aria-label="Close">✕</button>
     </div>
-    <div class="listener-info-card">
-      <p class="listener-info-title">Earning model</p>
-      <p class="listener-info-copy">Users spend 1 coin every 10 seconds on a call, which is 6 coins per minute. Listener payouts are 40% of the user coin spend.</p>
-      <p class="listener-info-highlight">That means 2.4 coins per minute equivalent goes to the listener.</p>
+
+    <!-- Step 1: Profile details -->
+    <div id="listenerStep1">
+      <div class="listener-info-card">
+        <p class="listener-info-title">Earning model</p>
+        <p class="listener-info-copy">Users spend 1 coin every 10 seconds on a call, which is 6 coins per minute. Listener payouts are 40% of the user coin spend.</p>
+        <p class="listener-info-highlight">That means 2.4 coins per minute equivalent goes to the listener.</p>
+      </div>
+      <form id="listenerForm" class="profile-form">
+        <label class="field-label">
+          <span>Display name</span>
+          <input id="listenerNameInput" name="listenerName" type="text" placeholder="Enter your name" required />
+        </label>
+        <label class="field-label">
+          <span>Languages</span>
+          <select id="listenerLanguagesInput" name="languages" class="field-select" required>
+            <option value="" disabled selected>Select language</option>
+            <option value="Telugu">Telugu</option>
+            <option value="Hindi">Hindi</option>
+          </select>
+        </label>
+        <label class="field-label">
+          <span>About you</span>
+          <textarea id="listenerAboutInput" name="about" rows="4" placeholder="Tell us about yourself..." required></textarea>
+        </label>
+        <button id="listenerContinueBtn" class="save-btn" type="submit">Continue</button>
+      </form>
     </div>
-    <form id="listenerForm" class="profile-form">
-      <label class="field-label">
-        <span>Display name</span>
-        <input id="listenerNameInput" name="listenerName" type="text" value="Rahul" />
-      </label>
-      <label class="field-label">
-        <span>Languages</span>
-        <input id="listenerLanguagesInput" name="languages" type="text" value="English, Hindi, Telugu" />
-      </label>
-      <label class="field-label">
-        <span>About you</span>
-        <textarea id="listenerAboutInput" name="about" rows="4">Warm listener for life updates, dating advice, and late-night conversations.</textarea>
-      </label>
-      <button id="saveListenerBtn" class="save-btn" type="submit">Create Listener Profile</button>
-    </form>
+
+    <!-- Step 2: Voice verification + gender -->
+    <div id="listenerStep2" class="hidden">
+      <div class="listener-verify-section">
+        <h3 class="listener-step-heading">Voice verification</h3>
+        <p class="listener-info-copy">Read the sentence below aloud so we can verify your voice.</p>
+        <div class="voice-prompt-card">
+          <p class="voice-prompt-text">"Hi, I am a listener on Happyga and I love helping people."</p>
+        </div>
+        <button id="voiceRecordBtn" class="voice-record-btn" type="button">
+          <span class="voice-record-icon">🎙</span> Tap to Record
+        </button>
+        <div id="voiceStatus" class="voice-status hidden"></div>
+      </div>
+      <div class="listener-gender-section">
+        <h3 class="listener-step-heading">Select your gender</h3>
+        <div class="gender-options">
+          <label class="gender-option">
+            <input type="radio" name="listenerGender" value="female" required />
+            <span class="gender-label">Female</span>
+          </label>
+          <label class="gender-option">
+            <input type="radio" name="listenerGender" value="male" />
+            <span class="gender-label">Male</span>
+          </label>
+        </div>
+      </div>
+      <button id="submitListenerBtn" class="save-btn" type="button" disabled>Submit Profile</button>
+      <div id="listenerApprovalStatus" class="listener-approval hidden"></div>
+    </div>
+
+    <!-- Step 3: Choose profile image -->
+    <div id="listenerStep3" class="hidden">
+      <h3 class="listener-step-heading">Choose your profile image</h3>
+      <p class="listener-info-copy">Pick an avatar that will be shown to users on your listener card.</p>
+      <div class="profile-image-grid">
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-1.png" />
+          <img src="profile-assets/listener-1.png" alt="Avatar 1" />
+          <span class="profile-image-check">✓</span>
+        </label>
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-2.png" />
+          <img src="profile-assets/listener-2.png" alt="Avatar 2" />
+          <span class="profile-image-check">✓</span>
+        </label>
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-3.png" />
+          <img src="profile-assets/listener-3.png" alt="Avatar 3" />
+          <span class="profile-image-check">✓</span>
+        </label>
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-4.png" />
+          <img src="profile-assets/listener-4.png" alt="Avatar 4" />
+          <span class="profile-image-check">✓</span>
+        </label>
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-5.png" />
+          <img src="profile-assets/listener-5.png" alt="Avatar 5" />
+          <span class="profile-image-check">✓</span>
+        </label>
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-6.png" />
+          <img src="profile-assets/listener-6.png" alt="Avatar 6" />
+          <span class="profile-image-check">✓</span>
+        </label>
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-7.png" />
+          <img src="profile-assets/listener-7.png" alt="Avatar 7" />
+          <span class="profile-image-check">✓</span>
+        </label>
+        <label class="profile-image-option">
+          <input type="radio" name="listenerAvatar" value="profile-assets/listener-8.png" />
+          <img src="profile-assets/listener-8.png" alt="Avatar 8" />
+          <span class="profile-image-check">✓</span>
+        </label>
+      </div>
+      <button id="confirmAvatarBtn" class="save-btn" type="button" disabled>Confirm &amp; Finish</button>
+    </div>
   </div>
 </div>
 

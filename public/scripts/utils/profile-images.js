@@ -30,14 +30,9 @@ function buildProfileFallbackImage(profile) {
 
 export function createProfiles(rawProfiles) {
   return rawProfiles.map((profile) => {
-    const primaryAiImage = buildAiProfileImage(profile, 'primary');
-    const backupAiImage = buildAiProfileImage(profile, 'backup');
-
     return {
       ...profile,
-      aiImage: primaryAiImage,
-      altAiImage: backupAiImage,
-      image: primaryAiImage,
+      image: profile.avatar || buildProfileFallbackImage(profile),
       fallbackImage: buildProfileFallbackImage(profile),
       isOnline: Boolean(profile.isOnline),
     };

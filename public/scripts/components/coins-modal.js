@@ -10,7 +10,7 @@ export function createCoinsModal({
 }) {
   let selectedPlan = {
     coins: '50',
-    price: '20',
+    price: '41',
   };
 
   function open() {
@@ -37,11 +37,15 @@ export function createCoinsModal({
       button.setAttribute('aria-selected', isSelected ? 'true' : 'false');
     });
 
-    selectedPlanText.textContent = `Selected: ${selectedPlan.coins} Coins for ₹${selectedPlan.price}`;
+    selectedPlanText.textContent = `${selectedPlan.coins} Coins for ₹${selectedPlan.price}`;
   }
 
   triggerButton.addEventListener('click', open);
   closeButton.addEventListener('click', close);
+
+  const rechargeHint = document.getElementById('rechargeHint');
+  if (rechargeHint) rechargeHint.addEventListener('click', open);
+
   modal.addEventListener('click', close);
   modalCard.addEventListener('click', (event) => {
     event.stopPropagation();

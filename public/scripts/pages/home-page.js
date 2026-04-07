@@ -6,15 +6,7 @@ export function createHomePage({ listElement, onStartCall }) {
 
   function handleProfileImageError(event) {
     const image = event.currentTarget;
-    const altAiImage = image.dataset.altAiImage;
     const fallbackImage = image.dataset.fallbackImage;
-
-    if (altAiImage && image.src !== altAiImage && image.dataset.aiRetryDone !== 'true') {
-      image.dataset.aiRetryDone = 'true';
-      image.src = altAiImage;
-      image.addEventListener('error', handleProfileImageError, { once: true });
-      return;
-    }
 
     if (fallbackImage && image.src !== fallbackImage) {
       image.src = fallbackImage;
@@ -34,7 +26,7 @@ export function createHomePage({ listElement, onStartCall }) {
       .map(
         (profile) => `
         <article class="profile-card card">
-          <img class="profile-image" src="${profile.image}" data-alt-ai-image="${profile.altAiImage}" data-fallback-image="${profile.fallbackImage}" alt="AI character of ${profile.name}" loading="lazy" />
+          <img class="profile-image" src="${profile.image}" data-fallback-image="${profile.fallbackImage}" alt="Profile picture of ${profile.name}" loading="lazy" />
           <div class="profile-content">
             <div class="profile-copy">
               <div class="profile-heading">
@@ -48,7 +40,7 @@ export function createHomePage({ listElement, onStartCall }) {
               <p class="bio">${profile.bio}</p>
             </div>
             <button class="call-btn" data-user="${profile.username}" type="button" aria-label="Call ${profile.name}">
-              <img class="call-btn-icon" src="assets/icons/call-button.svg" alt="" />
+              <img class="call-btn-icon" src="${profile.isOnline ? 'assets/icons/call-button-green.svg' : 'assets/icons/call-button.svg'}" alt="" />
             </button>
           </div>
         </article>
