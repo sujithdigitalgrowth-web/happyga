@@ -4,6 +4,9 @@ const { getWallet, setWalletBalance } = require('../store/wallet');
 const { CALL_SERVER_URL, PORT } = require('../config');
 const { db, FieldValue } = require('../firebase-admin');
 
+const twilio = require('twilio');
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
 const router = Router();
 
 /**
@@ -125,8 +128,8 @@ router.post('/preflight', async (req, res) => {
     wallet,
     listener: listenerId ? { listenerId, listenerName, listenerPhone } : null,
     note: callResult?.success
-      ? `Calling @${target} now. Billed after call ends.`
-      : `Demo call for @${target}. No charge.`,
+      ? `Calling ${String(target).replace(/^@+/, '')} now. Billed after call ends.`
+      : `Demo call for ${String(target).replace(/^@+/, '')}. No charge.`,
   });
 });
 
@@ -383,7 +386,8 @@ router.post('/status', async (req, res) => {
 
 /**
  * GET /api/calls/status/:callSid
- * Returns current call state from activeCalls collection for frontend polling.
+ * Returns current call state. Uses Firestore first; if not finalized,
+ * falls back to Twilio REST API for live status.
  */
 router.get('/status/:callSid', async (req, res) => {
   const callSid = req.params.callSid;
@@ -394,12 +398,38 @@ router.get('/status/:callSid', async (req, res) => {
     if (!doc.exists) return res.status(404).json({ error: 'Call not found' });
 
     const d = doc.data();
+
+    // If already finalized, return Firestore data immediately
+    if (d.finalized) {
+      return res.json({
+        callSid,
+        status: d.status,
+        answered: d.answered || false,
+        finalized: true,
+        durationSeconds: d.durationSeconds || 0,
+        chargedCoins: d.chargedCoins || 0,
+        finalStatus: d.finalStatus || null,
+        endedDueToLowBalance: d.endedDueToLowBalance || false,
+      });
+    }
+
+    // Not finalized — check Twilio for live status
+    let twilioStatus = d.status;
+    let twilioDuration = 0;
+    try {
+      const twilioCall = await twilioClient.calls(callSid).fetch();
+      twilioStatus = twilioCall.status; // queued, ringing, in-progress, completed, busy, no-answer, canceled, failed
+      twilioDuration = Number(twilioCall.duration) || 0;
+    } catch (twilioErr) {
+      console.error('Twilio fetch failed for callSid:', callSid, twilioErr.message);
+    }
+
     return res.json({
       callSid,
-      status: d.status,
-      answered: d.answered || false,
-      finalized: d.finalized || false,
-      durationSeconds: d.durationSeconds || 0,
+      status: twilioStatus,
+      answered: d.answered || twilioStatus === 'in-progress' || (twilioStatus === 'completed' && twilioDuration > 0),
+      finalized: false,
+      durationSeconds: d.durationSeconds || twilioDuration,
       chargedCoins: d.chargedCoins || 0,
       finalStatus: d.finalStatus || null,
       endedDueToLowBalance: d.endedDueToLowBalance || false,

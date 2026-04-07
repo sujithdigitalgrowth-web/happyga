@@ -54,10 +54,7 @@ async function init() {
   const callScreenNote = document.getElementById('callScreenNote');
   const callScreenCloseBtn = document.getElementById('callScreenCloseBtn');
   const callScreenBuyBtn = document.getElementById('callScreenBuyBtn');
-  const callScreenPhoneRow = document.getElementById('callScreenPhoneRow');
-  const callScreenPhoneInput = document.getElementById('callScreenPhoneInput');
-  const callScreenDialBtn = document.getElementById('callScreenDialBtn');
-  const callScreenDialStatus = document.getElementById('callScreenDialStatus');
+
   const callScreenTimer = document.getElementById('callScreenTimer');
   const callScreenSummary = document.getElementById('callScreenSummary');
 
@@ -239,9 +236,8 @@ async function init() {
       return;
     }
 
-    callScreenTitle.textContent = `Calling @${profile.username}`;
-    if (callScreenPhoneRow) callScreenPhoneRow.classList.remove('hidden');
-    if (callScreenDialStatus) { callScreenDialStatus.textContent = ''; callScreenDialStatus.className = 'call-screen-dial-status'; }
+    const displayName = String(profile.username || '').replace(/^@+/, '');
+    callScreenTitle.textContent = `Calling ${displayName}`;
     callScreenModal.classList.remove('hidden');
     setCallState('calling');
   }
@@ -365,39 +361,6 @@ async function init() {
       }
     },
   });
-
-  if (callScreenDialBtn && callScreenPhoneInput && callScreenDialStatus) {
-    callScreenDialBtn.addEventListener('click', async () => {
-      const toNumber = callScreenPhoneInput.value.trim();
-      if (!toNumber || toNumber.replace(/\D/g, '').length < 10) {
-        callScreenDialStatus.textContent = 'Enter a valid phone number.';
-        callScreenDialStatus.className = 'call-screen-dial-status dial-err';
-        return;
-      }
-      callScreenDialBtn.disabled = true;
-      callScreenDialStatus.textContent = 'Dialling...';
-      callScreenDialStatus.className = 'call-screen-dial-status';
-      try {
-        const res = await apiFetch('/api/call', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'toNumber=' + encodeURIComponent(toNumber),
-        });
-        const data = await res.json();
-        if (data.success) {
-          callScreenDialStatus.textContent = `\u2705 Ringing ${toNumber} — pick up!`;
-        } else {
-          callScreenDialStatus.textContent = `\u274c ${data.error || 'Call failed'}`;
-          callScreenDialStatus.classList.add('dial-err');
-        }
-      } catch (err) {
-        callScreenDialStatus.textContent = `\u274c ${err.message}`;
-        callScreenDialStatus.classList.add('dial-err');
-      } finally {
-        callScreenDialBtn.disabled = false;
-      }
-    });
-  }
 
   if (callScreenCloseBtn) {
     callScreenCloseBtn.addEventListener('click', closeCallScreen);
