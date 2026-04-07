@@ -678,6 +678,47 @@ button:hover {
   font-weight: 600;
 }
 
+.listener-dashboard {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(207, 122, 40, 0.16);
+}
+
+.listener-dashboard h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+
+.dashboard-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dashboard-stats p {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.withdraw-msg {
+  font-size: 12px;
+  color: #2e7d32;
+  margin-top: 8px;
+}
+}
+
+.dashboard-stats strong {
+  color: var(--ink);
+  font-size: 18px;
+  display: block;
+  margin-top: 2px;
+}
+
 .menu-chevron {
   font-size: 24px;
   line-height: 1;

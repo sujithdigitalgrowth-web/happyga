@@ -15,6 +15,21 @@
         </span>
         <span class="menu-chevron" aria-hidden="true">›</span>
       </button>
+
+      <div id="listenerDashboard" class="listener-dashboard card" style="display:none;">
+        <h3>Listener Dashboard</h3>
+        <div class="dashboard-stats">
+          <p>Coins Earned: <strong id="coinsEarned">0</strong></p>
+          <p>Available Coins: <strong id="availableCoins">0</strong></p>
+        </div>
+        <button id="withdrawBtn" class="primary-btn" type="button">Withdraw</button>
+        <div id="withdrawMsg" class="withdraw-msg"></div>
+        <div id="withdrawalHistory">
+          <h4>Withdrawal History</h4>
+          <ul id="withdrawalList"></ul>
+        </div>
+      </div>
+
       <button id="listenerProfileBtn" class="profile-menu-item" type="button">
         <span>
           <strong>Join as a listener</strong>

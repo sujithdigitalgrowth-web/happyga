@@ -10,9 +10,11 @@ process.on('unhandledRejection', (err) => {
 });
 
 const { PORT, CALL_SERVER_URL } = require('./src/config');
-const walletRoutes  = require('./src/routes/wallet');
-const sessionRoutes = require('./src/routes/sessions');
-const callRoutes    = require('./src/routes/calls');
+const walletRoutes       = require('./src/routes/wallet');
+const sessionRoutes      = require('./src/routes/sessions');
+const callRoutes         = require('./src/routes/calls');
+const withdrawalRoutes   = require('./src/routes/withdrawals');
+const listenerRoutes     = require('./src/routes/listener');
 
 const app = express();
 
@@ -30,9 +32,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (_, res) => res.json({ status: 'ok', storage: 'firestore', callMode: 'live' }));
 
-app.use('/api/wallet',   walletRoutes);
-app.use('/api/sessions', sessionRoutes);
-app.use('/api/calls',    callRoutes);
+app.use('/api/wallet',       walletRoutes);
+app.use('/api/sessions',     sessionRoutes);
+app.use('/api/calls',        callRoutes);
+app.use('/api/withdrawals',  withdrawalRoutes);
+app.use('/api',              listenerRoutes);
 
 // Raw-number proxy: POST /api/call { toNumber }  (used by test page & call screen dial)
 app.post('/api/call', async (req, res) => {

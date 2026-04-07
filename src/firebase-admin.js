@@ -21,7 +21,9 @@ if (!admin.apps.length) {
   }
 }
 
-const db = admin.apps.length ? admin.firestore() : null;
+const { getFirestore } = require('firebase-admin/firestore');
+
+const db = admin.apps.length ? getFirestore(admin.app(), 'happygadatabase') : null;
 const auth = admin.apps.length ? admin.auth() : null;
 
 module.exports = { admin, db, auth };

@@ -96,9 +96,13 @@ async function init() {
   }
 
   if (!nativeApp) {
-    sendOtpBtn.disabled = true;
-    phoneInput.disabled = true;
-    showStatus('OTP is enabled only in the Android app build. Open the app on device/emulator to continue.');
+    if (isLocalDebugHost()) {
+      showStatus('Demo mode: enter any phone number to log in without OTP.');
+    } else {
+      sendOtpBtn.disabled = true;
+      phoneInput.disabled = true;
+      showStatus('OTP is enabled only in the Android app build. Open the app on device/emulator to continue.');
+    }
   }
 
   async function completeLogin({ uid, phoneNumber, getToken }) {
@@ -178,6 +182,21 @@ async function init() {
       phoneInput.focus();
       return;
     }
+
+    // Demo login on localhost (no OTP needed)
+    if (!nativeApp && isLocalDebugHost()) {
+      showStatus('Logging in (demo)...');
+      writeAuthState({
+        phone: `+91${phone}`,
+        uid: `demo_${phone}`,
+        mode: 'demo',
+        idToken: null,
+        verifiedAt: new Date().toISOString(),
+      });
+      window.location.href = 'index.html';
+      return;
+    }
+
     await sendOtp(phone);
   });
 

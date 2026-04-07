@@ -128,3 +128,43 @@ export async function saveSession(authState, session) {
     }),
   );
 }
+
+export async function createWithdrawal(authState, amount, upiId) {
+  return readJsonResponse(
+    await apiFetch('/api/withdrawals', {
+      method: 'POST',
+      headers: buildApiHeaders(authState, {
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify({ amount, upiId }),
+    }),
+  );
+}
+
+export async function createListenerProfile(authState, payload) {
+  return readJsonResponse(
+    await apiFetch('/api/listener-profile', {
+      method: 'POST',
+      headers: buildApiHeaders(authState, {
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function getListenerProfile(authState) {
+  return readJsonResponse(
+    await apiFetch('/api/listener-profile', {
+      headers: buildApiHeaders(authState),
+    }),
+  );
+}
+
+export async function getWithdrawals(authState) {
+  return readJsonResponse(
+    await apiFetch('/api/withdrawals', {
+      headers: buildApiHeaders(authState),
+    }),
+  );
+}

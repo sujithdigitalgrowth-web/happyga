@@ -211,11 +211,13 @@ async function init() {
     listenerProfileBtn,
     referFriendBtn,
     copyReferralBtn,
+    withdrawBtn: document.getElementById('withdrawBtn'),
     logoutBtn,
     detailsModal,
     listenerModal,
     referModal,
     modalCloseButtons,
+    authState,
     onLogout: async () => {
       const nativeFirebaseAuth = window.Capacitor?.isNativePlatform?.()
         ? window.Capacitor?.Plugins?.FirebaseAuthentication
