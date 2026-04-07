@@ -88,6 +88,9 @@ async function init() {
 
     walletBalanceText.textContent = `${walletState.balance} coins available`;
     callStatusText.textContent = `Demo calls reserve ${walletState.callCostCoins} coins before connecting.`;
+
+    const coinsBadge = document.getElementById('coinsBadge');
+    if (coinsBadge) coinsBadge.textContent = `Coins = ${walletState.balance}`;
   }
 
   function openCallScreen(profile) {
@@ -304,6 +307,21 @@ async function init() {
     showHomeView: () => bottomNav.switchView('home'),
   });
 
+  // Topbar logout button
+  if (document.getElementById('topLogoutBtn')) {
+    document.getElementById('topLogoutBtn').addEventListener('click', async () => {
+      const nativeFirebaseAuth = window.Capacitor?.isNativePlatform?.()
+        ? window.Capacitor?.Plugins?.FirebaseAuthentication
+        : null;
+      clearAuthState();
+      if (nativeFirebaseAuth) {
+        try { await nativeFirebaseAuth.signOut(); } catch { /* ignore */ }
+      }
+      try { await signOut(firebaseAuth); } catch { /* ignore */ }
+      window.location.href = 'login.html';
+    });
+  }
+
   try {
     const [wallet, sessions] = await Promise.all([
       fetchWallet(authState),
@@ -312,8 +330,7 @@ async function init() {
     updateWalletUi(wallet);
     sessionsPage.setSessions(sessions);
   } catch (error) {
-    walletBalanceText.textContent = 'Coins unavailable';
-    callStatusText.textContent = error.message;
+    updateWalletUi({ balance: 0 });
     sessionsPage.setSessions([]);
   }
 }

@@ -4,6 +4,11 @@ const cors = require('cors');
 
 require('dotenv').config();
 
+// Prevent unhandled Firestore/gRPC errors from crashing the server
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandledRejection]', err?.message || err);
+});
+
 const { PORT, CALL_SERVER_URL } = require('./src/config');
 const walletRoutes  = require('./src/routes/wallet');
 const sessionRoutes = require('./src/routes/sessions');

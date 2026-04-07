@@ -173,6 +173,11 @@ button:hover {
   margin-bottom: 10px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+}
+
 .topbar-meta {
   display: grid;
   gap: 4px;
@@ -238,6 +243,20 @@ button:hover {
   width: 98px;
   height: 34px;
   display: block;
+}
+
+.coins-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.coins-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4d3400;
+  white-space: nowrap;
 }
 
 .coins-overlay {
@@ -632,6 +651,16 @@ button:hover {
 
 .logout-bottom {
   margin-top: 18px;
+}
+
+.topbar-actions .logout-btn {
+  width: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 8px;
+  background: rgba(207, 122, 40, 0.1);
+  color: #BF8B4D;
+  margin-left: 8px;
 }
 
 .overlay-sheet {

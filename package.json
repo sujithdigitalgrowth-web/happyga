@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
+    "dev": "nodemon server.js",
     "cap:sync": "npx cap sync android",
     "android:open": "npx cap open android",
     "apk:debug": "npx cap sync android && android\\gradlew.bat assembleDebug"
@@ -21,6 +21,7 @@
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
-    "firebase": "^12.11.0"
+    "firebase": "^12.11.0",
+    "nodemon": "^3.1.14"
   }
 }
