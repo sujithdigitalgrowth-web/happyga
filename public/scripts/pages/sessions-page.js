@@ -26,13 +26,14 @@ export function createSessionsPage({ listElement }) {
     }
   }
 
-  function statusLabel(s) {
+  function statusLabel(s, duration) {
+    if (s === 'completed' && (!duration || duration <= 0)) return 'Not connected';
     const map = { completed: 'Completed', busy: 'Busy', 'no-answer': 'No answer', failed: 'Failed', canceled: 'Canceled' };
     return map[s] || s || 'Unknown';
   }
 
-  function statusClass(s) {
-    if (s === 'completed') return 'session-status-ok';
+  function statusClass(s, duration) {
+    if (s === 'completed' && duration > 0) return 'session-status-ok';
     return 'session-status-fail';
   }
 
@@ -66,7 +67,7 @@ export function createSessionsPage({ listElement }) {
         <div class="session-avatar" aria-hidden="true">${escapeHtml(initial)}</div>
         <div class="session-body">
           <p class="session-name">${escapeHtml(name)}</p>
-          <p class="session-status ${statusClass(status)}">${escapeHtml(statusLabel(status))}</p>
+          <p class="session-status ${statusClass(status, duration)}">${escapeHtml(statusLabel(status, duration))}</p>
           ${duration > 0 ? `<p class="session-meta">Duration: ${formatDuration(duration)}</p>` : ''}
           ${coins > 0 ? `<p class="session-meta">Coins used: ${coins}</p>` : coins === 0 && status ? `<p class="session-meta">Coins used: 0</p>` : ''}
           ${lowBal ? '<p class="session-low-balance">Ended due to low balance</p>' : ''}

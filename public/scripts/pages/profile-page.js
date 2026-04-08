@@ -88,6 +88,38 @@ export function createProfilePage({
 
   initChips();
 
+  // --- Listener interest chips ---
+  let listenerInterests = [];
+  const MAX_LISTENER_INTERESTS = 3;
+
+  function syncListenerChips() {
+    const chips = document.querySelectorAll('#listenerInterestChips .interest-chip');
+    chips.forEach((chip) => {
+      const selected = listenerInterests.includes(chip.dataset.value);
+      chip.classList.toggle('selected', selected);
+      chip.disabled = !selected && listenerInterests.length >= MAX_LISTENER_INTERESTS;
+    });
+  }
+
+  function initListenerChips() {
+    const container = document.getElementById('listenerInterestChips');
+    if (!container) return;
+    container.addEventListener('click', (e) => {
+      const chip = e.target.closest('.interest-chip');
+      if (!chip) return;
+      const val = chip.dataset.value;
+      const idx = listenerInterests.indexOf(val);
+      if (idx > -1) {
+        listenerInterests.splice(idx, 1);
+      } else if (listenerInterests.length < MAX_LISTENER_INTERESTS) {
+        listenerInterests.push(val);
+      }
+      syncListenerChips();
+    });
+  }
+
+  initListenerChips();
+
   personalDetailsBtn.addEventListener('click', () => openModal(detailsModal));
   listenerProfileBtn.addEventListener('click', () => openModal(listenerModal));
   if (referFriendBtn) {
@@ -369,7 +401,7 @@ export function createProfilePage({
     const about = listenerForm.elements.about.value.trim();
     if (!name || !languages || !about) return;
 
-    listenerState = { name, languages, about };
+    listenerState = { name, languages, about, interests: [...listenerInterests] };
 
     // Move to step 2
     document.getElementById('listenerStep1').classList.add('hidden');
@@ -458,6 +490,7 @@ export function createProfilePage({
             language: listenerState.languages,
             bio: listenerState.about,
             gender: gender,
+            interests: listenerState.interests || [],
           });
           listenerStatus = 'approved';
           approvalStatus.innerHTML = '<span class="approval-icon">✅</span> Profile approved! You can start earning.';
@@ -488,6 +521,7 @@ export function createProfilePage({
             language: listenerState.languages,
             bio: listenerState.about,
             gender: gender,
+            interests: listenerState.interests || [],
           });
           listenerStatus = 'pending';
           approvalStatus.innerHTML = '<span class="approval-icon">⏳</span> Profile under review. We will notify you soon.';
@@ -508,6 +542,8 @@ export function createProfilePage({
       document.getElementById('listenerStep2').classList.add('hidden');
       document.getElementById('listenerTitle').textContent = 'Create listener profile';
       voiceRecorded = false;
+      listenerInterests = [];
+      syncListenerChips();
       if (voiceRecordBtn) {
         voiceRecordBtn.disabled = false;
         voiceRecordBtn.innerHTML = '<span class="voice-record-icon">🎙</span> Tap to Record';

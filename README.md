@@ -9,10 +9,10 @@ A coin-based voice-calling dating app where users browse listener profiles, buy 
 - **Frontend:** Vanilla HTML, CSS, JavaScript (ES6 modules)
 - **Backend:** Node.js + Express (2 services)
 - **Database:** Firebase Firestore (`happygadatabase`)
-- **Auth:** Firebase Phone Authentication (OTP-based)
+- **Auth:** Firebase Phone Authentication (OTP — web reCAPTCHA + native Capacitor plugin)
 - **Calls:** Twilio Voice API (dedicated call server)
 - **Mobile:** Capacitor Android wrapper
-- **Deployment:** Railway (2 services)
+- **Deployment:** Railway (project: `accurate-ambition`, 2 services)
 - **Dev tools:** nodemon, dotenv
 
 ---
@@ -104,12 +104,15 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 ## Features
 
 ### 1. Authentication
-- Firebase Phone Auth with OTP
-- reCAPTCHA verification on web, native plugin on Android
+- Firebase Phone Auth with OTP — 3 login paths:
+  - **Localhost demo mode:** Bypasses phone verification for local development
+  - **Production web:** Firebase `RecaptchaVerifier` (invisible) + `signInWithPhoneNumber` + OTP confirmation
+  - **Native Android:** Capacitor Firebase Auth plugin (`@nicepayments/capacitor-firebase-auth`)
 - Auth state persisted in localStorage (`happyga_auth`)
 - Auto token refresh via `onIdTokenChanged`
 - Auth guard redirects unauthenticated users to login page
 - Auth headers: `Authorization` (Bearer token), `x-happyga-phone`, `x-happyga-auth-mode`
+- **Important:** Production web domain must be added to Firebase Console → Authentication → Authorized Domains
 
 ### 2. Home Page — Listener Feed
 - Fetches approved listener profiles from Firestore via `GET /api/listeners`
@@ -181,7 +184,13 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 - **Withdrawal History modal:** Opens immediately with "Loading..." placeholder, loads data async
 - Shows amount, status badge (pending/approved/rejected), timestamps
 
-### 11. Bottom Navigation
+### 11. Admin & Security
+- **Admin endpoint** (`GET /api/withdrawals/admin`): Protected by `ADMIN_UIDS` env var allowlist
+- All authenticated endpoints use `resolveUserIdentity()` — supports both Bearer tokens and `x-happyga-phone` header
+- Firebase Admin SDK: Prefers `FIREBASE_SERVICE_ACCOUNT` env var (JSON string), falls back to local `serviceAccountKey.json` file
+- `.gitignore` excludes secrets: `.env`, `.env.local`, `.env.production`, `serviceAccountKey.json`
+
+### 12. Bottom Navigation
 - 4 tabs: Home, Profile, Sessions, Random Call
 - Active tab styling with fragment-based page switching
 
@@ -242,11 +251,13 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 3000 | Server port |
-| `HAPPYGA_DEFAULT_COINS` | 0 | Starting coins for new users |
+| `HAPPYGA_DEFAULT_COINS` | 50 | Starting coins for new users (uses `??` so `0` is valid) |
 | `CALL_SERVER_URL` | `http://localhost:3001` | URL of the Twilio call server |
 | `STATUS_CALLBACK_BASE_URL` | `http://localhost:PORT` | Base URL for Twilio status callbacks |
 | `TWILIO_ACCOUNT_SID` | — | Twilio credentials (for live status polling) |
 | `TWILIO_AUTH_TOKEN` | — | Twilio credentials |
+| `FIREBASE_SERVICE_ACCOUNT` | — | Firebase service account JSON string (for Railway / production) |
+| `ADMIN_UIDS` | — | Comma-separated Firebase UIDs for admin access |
 
 ### Twilio Call Server (`dating-calls/.env`)
 
@@ -281,22 +292,33 @@ Open http://localhost:3000
 
 ## Railway Deployment
 
-Both services deploy as separate Railway services from the same repo.
+Railway project: **accurate-ambition** — 2 services from the same repo.
 
-**Main Backend** — root directory, start: `node server.js`
-**Call Server** — `dating-calls/` directory, start: `node server.js`
+| Service | Root Directory | Start Command | Domain |
+|---------|---------------|----------------|--------|
+| Main Backend (`web`) | `/` (root) | `node server.js` | `web-production-a1c42b.up.railway.app` |
+| Twilio Call Server (`dating-calls`) | `/dating-calls/` | `node server.js` | `dating-calls-production-*.up.railway.app` |
 
 Railway env vars to set:
 
 | Service | Variable | Value |
 |---------|----------|-------|
-| Main Backend | `CALL_SERVER_URL` | `https://<call-server>.up.railway.app` |
-| Main Backend | `STATUS_CALLBACK_BASE_URL` | `https://<main-backend>.up.railway.app` |
+| Main Backend | `FIREBASE_SERVICE_ACCOUNT` | Full JSON string of service account key |
+| Main Backend | `CALL_SERVER_URL` | `https://dating-calls-production-*.up.railway.app` |
+| Main Backend | `STATUS_CALLBACK_BASE_URL` | `https://web-production-a1c42b.up.railway.app` |
 | Main Backend | `TWILIO_ACCOUNT_SID` | Twilio creds |
 | Main Backend | `TWILIO_AUTH_TOKEN` | Twilio creds |
+| Main Backend | `ADMIN_UIDS` | Comma-separated Firebase UIDs |
 | Call Server | `TWILIO_ACCOUNT_SID` | Twilio creds |
 | Call Server | `TWILIO_AUTH_TOKEN` | Twilio creds |
 | Call Server | `TWILIO_PHONE_NUMBER` | Twilio number |
+
+**Post-deploy checklist:**
+1. Add `web-production-a1c42b.up.railway.app` to Firebase Console → Authentication → Authorized Domains
+2. Set all env vars above in Railway dashboard
+3. Verify `GET /health` returns 200 on both services
+4. Test OTP login on the web domain
+5. Test wallet balance, listener feed, call preflight
 
 ---
 
@@ -315,8 +337,9 @@ Requires SHA-1/SHA-256 fingerprints registered in Firebase for OTP.
 
 ## Known Limitations (MVP)
 
-- Wallet recharge has no real payment gateway — coins are added directly
+- **Wallet recharge has no payment gateway** — `POST /api/wallet/recharge` adds coins directly without payment verification (needs rate limiting / payment gateway before public launch)
 - Listener online/offline is manual toggle (no auto idle detection)
 - No realtime sockets for live presence updates across clients
 - Call billing relies on Twilio status callbacks + REST API fallback polling
 - Firestore may need composite indexes for ordered queries (withdrawals, listener sessions)
+- `NATIVE_API_BASE_URLS` in `api.js` has a placeholder Railway domain — update to actual domain before Android APK release
