@@ -176,23 +176,21 @@ export async function getWithdrawals(authState) {
 export async function updateListenerStatus(authState, isOnline) {
   return apiFetch('/api/listener-status', {
     method: 'POST',
-    authState,
+    headers: buildApiHeaders(authState, { 'Content-Type': 'application/json' }),
     body: JSON.stringify({ isOnline }),
   });
 }
 
-export async function getListeners(authState) {
-  return apiFetch('/api/listeners', {
-    method: 'GET',
-    authState,
-  });
+export async function getListeners() {
+  return apiFetch('/api/listeners');
 }
 
 export async function getListenerSessions(authState) {
-  return apiFetch('/api/listener-sessions', {
-    method: 'GET',
-    authState,
-  });
+  return readJsonResponse(
+    await apiFetch('/api/listener-sessions', {
+      headers: buildApiHeaders(authState),
+    }),
+  );
 }
 
 export async function getCallStatus(callSid) {

@@ -1,5 +1,10 @@
 import { loadFragments } from './shared/fragment-loader.js';
 import { writeAuthState } from './services/auth.js';
+import { firebaseAuth } from './firebase.js';
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 
 function getNativeFirebaseAuthPlugin() {
   const capacitor = window.Capacitor;
@@ -50,7 +55,7 @@ function getOtpErrorMessage(error, isNative = false) {
       : 'App credential is invalid. Ensure this domain is authorized in Firebase Authentication settings.';
   }
   else if (normalizedCode.includes('auth/unauthorized-domain')) {
-    message = 'This domain is not authorized in Firebase. Add localhost and your LAN IP in Firebase Auth -> Settings -> Authorized domains.';
+    message = 'This domain is not authorized in Firebase. Add your deployment domain in Firebase Console -> Authentication -> Settings -> Authorized domains.';
   }
   else if (normalizedCode.includes('auth/operation-not-allowed')) {
     message = 'Phone sign-in is disabled. Enable Phone provider in Firebase Authentication -> Sign-in method.';
@@ -90,19 +95,31 @@ async function init() {
   let currentPhone = '';
   const nativeApp = isNativeApp();
   const nativeFirebaseAuth = getNativeFirebaseAuthPlugin();
+  let recaptchaVerifier = null;
 
   function showStatus(message) {
     statusText.textContent = message;
   }
 
+  // Setup reCAPTCHA for web (non-native) on production domains
+  function ensureRecaptchaVerifier() {
+    if (recaptchaVerifier) return recaptchaVerifier;
+    recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'sendOtpBtn', {
+      size: 'invisible',
+      callback: () => { /* solved */ },
+      'expired-callback': () => {
+        recaptchaVerifier = null;
+        showStatus('reCAPTCHA expired. Try sending OTP again.');
+      },
+    });
+    return recaptchaVerifier;
+  }
+
   if (!nativeApp) {
     if (isLocalDebugHost()) {
       showStatus('Demo mode: enter any phone number to log in without OTP.');
-    } else {
-      sendOtpBtn.disabled = true;
-      phoneInput.disabled = true;
-      showStatus('OTP is enabled only in the Android app build. Open the app on device/emulator to continue.');
     }
+    // Production web — keep form enabled, use reCAPTCHA + Firebase Web SDK
   }
 
   async function completeLogin({ uid, phoneNumber, getToken }) {
@@ -153,24 +170,39 @@ async function init() {
     showStatus('Sending OTP...');
     currentPhone = phone;
 
-    if (!nativeApp) {
-      showStatus('OTP is enabled only in the Android app build.');
+    // Native Capacitor app — use native Firebase plugin
+    if (nativeApp) {
+      if (!nativeFirebaseAuth) {
+        showStatus('Native phone authentication is unavailable. Run cap sync and rebuild the app.');
+        return;
+      }
+
+      try {
+        await setupNativePhoneListeners();
+        await nativeFirebaseAuth.signInWithPhoneNumber({
+          phoneNumber: `+91${phone}`,
+        });
+      } catch (err) {
+        console.error('Native OTP send error:', err);
+        showStatus(getOtpErrorMessage(err, true));
+      }
       return;
     }
 
-    if (!nativeFirebaseAuth) {
-      showStatus('Native phone authentication is unavailable. Run cap sync and rebuild the app.');
-      return;
-    }
-
+    // Web browser — use Firebase Web SDK + reCAPTCHA
     try {
-      await setupNativePhoneListeners();
-      await nativeFirebaseAuth.signInWithPhoneNumber({
-        phoneNumber: `+91${phone}`,
-      });
+      const verifier = ensureRecaptchaVerifier();
+      confirmationResult = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`, verifier);
+      otpForm.classList.remove('hidden');
+      otpHint.textContent = `OTP sent to +91 ${phone}`;
+      showStatus('');
+      otpInput.value = '';
+      otpInput.focus();
     } catch (err) {
-      console.error('Native OTP send error:', err);
-      showStatus(getOtpErrorMessage(err, true));
+      console.error('Web OTP send error:', err);
+      // Reset reCAPTCHA on failure so it can be re-created
+      recaptchaVerifier = null;
+      showStatus(getOtpErrorMessage(err, false));
     }
   }
 
@@ -209,6 +241,25 @@ async function init() {
       return;
     }
 
+    showStatus('Verifying...');
+
+    // Web browser — use confirmationResult from signInWithPhoneNumber
+    if (!nativeApp && confirmationResult) {
+      try {
+        const result = await confirmationResult.confirm(enteredOtp);
+        await completeLogin({
+          uid: result.user?.uid,
+          phoneNumber: result.user?.phoneNumber,
+          getToken: () => result.user.getIdToken(true),
+        });
+      } catch (err) {
+        console.error('Web OTP verification error:', err);
+        showStatus(getOtpErrorMessage(err, false));
+      }
+      return;
+    }
+
+    // Native Capacitor — use confirmVerificationCode
     if (nativeApp && !nativeFirebaseAuth) {
       showStatus('Native phone authentication is unavailable. Run cap sync and rebuild the app.');
       return;
@@ -219,7 +270,6 @@ async function init() {
       return;
     }
 
-    showStatus('Verifying...');
     try {
       const result = await nativeFirebaseAuth.confirmVerificationCode({
         verificationId: nativeVerificationId,

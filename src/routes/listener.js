@@ -67,8 +67,9 @@ router.get('/listener-profile', async (req, res) => {
 });
 
 router.post('/listener-status', async (req, res) => {
-  const uid = req.user?.uid;
-  if (!uid) return res.status(401).json({ error: 'Authentication required' });
+  const user = await resolveUserIdentity(req);
+  if (!user) return res.status(401).json({ error: 'Authentication required' });
+  const uid = user.uid;
 
   const { isOnline } = req.body;
 

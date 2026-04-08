@@ -71,6 +71,14 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/admin', async (req, res) => {
+  const user = await resolveUserIdentity(req);
+  if (!user) return res.status(401).json({ error: 'Authentication required' });
+
+  const adminUids = (process.env.ADMIN_UIDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!adminUids.includes(user.uid)) {
+    return res.status(403).json({ error: 'Forbidden: admin access only' });
+  }
+
   const snapshot = await db.collection('withdrawalRequests')
     .where('status', '==', 'pending')
     .orderBy('createdAt', 'desc')

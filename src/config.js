@@ -5,6 +5,6 @@ function normalizeUrl(raw, fallback) {
 
 module.exports = {
   PORT: Number(process.env.PORT) || 3000,
-  DEFAULT_STARTING_COINS: Number(process.env.HAPPYGA_DEFAULT_COINS || 50),
+  DEFAULT_STARTING_COINS: Number(process.env.HAPPYGA_DEFAULT_COINS ?? 50),
   CALL_SERVER_URL: normalizeUrl(process.env.CALL_SERVER_URL, 'http://localhost:3001'),
 };
