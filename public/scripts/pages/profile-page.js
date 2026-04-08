@@ -1,4 +1,4 @@
-import { createWithdrawal, createListenerProfile, getListenerProfile, getWithdrawals, updateListenerStatus, getListenerSessions } from '../services/api.js';
+import { createWithdrawal, createListenerProfile, getListenerProfile, getWithdrawals, updateListenerStatus, getListenerSessions, getTransactions } from '../services/api.js';
 
 export function createProfilePage({
   profileForm,
@@ -122,12 +122,147 @@ export function createProfilePage({
 
   personalDetailsBtn.addEventListener('click', () => openModal(detailsModal));
   listenerProfileBtn.addEventListener('click', () => openModal(listenerModal));
+
+  // --- Transactions ---
+  const transactionsBtn = document.getElementById('transactionsBtn');
+  const transactionsOverlay = document.getElementById('transactionsOverlay');
+  const transactionsList = document.getElementById('transactionsList');
+  const closeTransactionsBtn = document.getElementById('closeTransactionsBtn');
+
+  if (transactionsBtn) {
+    transactionsBtn.addEventListener('click', async () => {
+      if (transactionsOverlay) transactionsOverlay.classList.remove('hidden');
+      transactionsList.innerHTML = '<p class="transactions-empty">Loading...</p>';
+
+      try {
+        const data = await getTransactions(authState);
+        const txns = data?.transactions || [];
+        if (!txns.length) {
+          transactionsList.innerHTML = '<p class="transactions-empty">No transactions yet</p>';
+          return;
+        }
+        transactionsList.innerHTML = txns.map((t) => {
+          const date = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+          const priceText = t.price ? `₹${t.price}` : '';
+          return `
+            <div class="txn-row">
+              <div class="txn-left">
+                <span class="txn-icon">🪙</span>
+                <div>
+                  <p class="txn-title">+${t.coins} Coins</p>
+                  <p class="txn-date">${date}</p>
+                </div>
+              </div>
+              <div class="txn-right">
+                ${priceText ? `<span class="txn-price">${priceText}</span>` : ''}
+                <span class="txn-balance">Bal: ${t.balanceAfter}</span>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        transactionsList.innerHTML = '<p class="transactions-empty">Failed to load transactions</p>';
+      }
+    });
+  }
+
+  if (closeTransactionsBtn) {
+    closeTransactionsBtn.addEventListener('click', () => {
+      if (transactionsOverlay) transactionsOverlay.classList.add('hidden');
+    });
+  }
   if (referFriendBtn) {
     referFriendBtn.addEventListener('click', () => openModal(referModal));
   }
 
   let listenerStatus = 'not_registered'; // 'not_registered' | 'pending' | 'approved'
   const listenerDashboard = document.getElementById('listenerDashboard');
+  const openListenerDashboardBtn = document.getElementById('openListenerDashboardBtn');
+  const listenerDashboardOverlay = document.getElementById('listenerDashboardOverlay');
+  const closeListenerDashboardBtn = document.getElementById('closeListenerDashboardBtn');
+
+  if (openListenerDashboardBtn) {
+    openListenerDashboardBtn.addEventListener('click', () => {
+      if (listenerDashboardOverlay) listenerDashboardOverlay.classList.remove('hidden');
+    });
+  }
+  if (closeListenerDashboardBtn) {
+    closeListenerDashboardBtn.addEventListener('click', () => {
+      if (listenerDashboardOverlay) listenerDashboardOverlay.classList.add('hidden');
+    });
+  }
+
+  // ── Account Settings overlay ──
+  const accountSettingsBtn = document.getElementById('accountSettingsBtn');
+  const accountSettingsOverlay = document.getElementById('accountSettingsOverlay');
+  const closeAccountSettingsBtn = document.getElementById('closeAccountSettingsBtn');
+
+  if (accountSettingsBtn) {
+    accountSettingsBtn.addEventListener('click', () => {
+      if (accountSettingsOverlay) accountSettingsOverlay.classList.remove('hidden');
+    });
+  }
+  if (closeAccountSettingsBtn) {
+    closeAccountSettingsBtn.addEventListener('click', () => {
+      if (accountSettingsOverlay) accountSettingsOverlay.classList.add('hidden');
+    });
+  }
+
+  // Privacy Policy
+  const privacyPolicyBtn = document.getElementById('privacyPolicyBtn');
+  if (privacyPolicyBtn) {
+    privacyPolicyBtn.addEventListener('click', () => {
+      window.open('https://happyga.in/privacy-policy', '_blank');
+    });
+  }
+
+  // Community Guidelines
+  const communityGuidelinesBtn = document.getElementById('communityGuidelinesBtn');
+  if (communityGuidelinesBtn) {
+    communityGuidelinesBtn.addEventListener('click', () => {
+      window.open('https://happyga.in/community-guidelines', '_blank');
+    });
+  }
+
+  // Delete Account
+  const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+  if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener('click', async () => {
+      const confirmed = confirm('Are you sure you want to delete your account? This action is permanent and cannot be undone.');
+      if (!confirmed) return;
+      try {
+        const res = await fetch('/api/account', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authState.token}` },
+        });
+        if (!res.ok) throw new Error('Delete failed');
+        alert('Your account has been deleted.');
+        if (typeof onLogout === 'function') onLogout();
+      } catch (err) {
+        console.error('Account deletion error:', err);
+        alert('Failed to delete account. Please try again.');
+      }
+    });
+  }
+
+  // Exit Listener Mode — go offline and close dashboard
+  const listenerLogoutBtn = document.getElementById('listenerLogoutBtn');
+  if (listenerLogoutBtn) {
+    listenerLogoutBtn.addEventListener('click', async () => {
+      try {
+        await updateListenerStatus(authState, false);
+        syncStatusBadge(false);
+        const statusText = document.getElementById('listenerStatusText');
+        if (statusText) statusText.innerText = 'Offline';
+        const goOnlineBtn = document.getElementById('goOnlineBtn');
+        const goOfflineBtn = document.getElementById('goOfflineBtn');
+        if (goOnlineBtn) goOnlineBtn.style.display = 'inline-block';
+        if (goOfflineBtn) goOfflineBtn.style.display = 'none';
+      } catch (err) {
+        console.error('Failed to go offline:', err);
+      }
+      if (listenerDashboardOverlay) listenerDashboardOverlay.classList.add('hidden');
+    });
+  }
 
   function handleSwitchToListenerMode() {
     // Hide normal profile options
@@ -153,7 +288,25 @@ export function createProfilePage({
 
   document
     .getElementById('switchListenerModeBtn')
-    .addEventListener('click', handleSwitchToListenerMode);
+    .addEventListener('click', async () => {
+      const btn = document.getElementById('switchListenerModeBtn');
+      const isCurrentlyOnline = btn.textContent.trim() === 'Go Offline';
+      btn.disabled = true;
+      try {
+        if (isCurrentlyOnline) {
+          await updateListenerStatus(authState, false);
+          btn.textContent = 'Go Online';
+          syncStatusBadge(false);
+        } else {
+          await updateListenerStatus(authState, true);
+          btn.textContent = 'Go Offline';
+          syncStatusBadge(true);
+        }
+      } catch (err) {
+        console.error('Failed to toggle listener status:', err);
+      }
+      btn.disabled = false;
+    });
 
   const backToProfileBtn = document.getElementById('backToProfileBtn');
   if (backToProfileBtn) {
@@ -282,7 +435,7 @@ export function createProfilePage({
       const res = await getListenerProfile(authState);
 
       if (!res || !res.profile) {
-        if (listenerDashboard) listenerDashboard.style.display = 'none';
+        if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
         listenerProfileBtn.style.display = '';
         return;
       }
@@ -291,24 +444,15 @@ export function createProfilePage({
 
       if (profile.status === 'approved') {
         listenerStatus = 'approved';
+        if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = '';
         if (listenerDashboard) {
-          listenerDashboard.style.display = 'block';
           document.getElementById("coinsEarned").innerText = profile.totalCoinsEarned || 0;
           document.getElementById("availableCoins").innerText = profile.availableCoins || 0;
 
-          // NEW: sync online status
-          const statusText = document.getElementById("listenerStatusText");
-          const goOnlineBtn = document.getElementById("goOnlineBtn");
-          const goOfflineBtn = document.getElementById("goOfflineBtn");
-
-          if (profile.isOnline) {
-            statusText.innerText = "Online";
-            goOnlineBtn.style.display = "none";
-            goOfflineBtn.style.display = "inline-block";
-          } else {
-            statusText.innerText = "Offline";
-            goOnlineBtn.style.display = "inline-block";
-            goOfflineBtn.style.display = "none";
+          // Sync online status to dashboard toggle button
+          const switchBtn = document.getElementById('switchListenerModeBtn');
+          if (switchBtn) {
+            switchBtn.textContent = profile.isOnline ? 'Go Offline' : 'Go Online';
           }
           syncStatusBadge(!!profile.isOnline);
         }
@@ -317,13 +461,13 @@ export function createProfilePage({
         loadListenerRecentCalls();
       } else {
         listenerStatus = 'pending';
-        if (listenerDashboard) listenerDashboard.style.display = 'none';
+        if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
         listenerProfileBtn.style.display = '';
         alert('Your listener profile is under review');
       }
     } catch (err) {
       console.error('Listener fetch failed:', err);
-      if (listenerDashboard) listenerDashboard.style.display = 'none';
+      if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
       listenerProfileBtn.style.display = '';
     }
   }
@@ -398,10 +542,9 @@ export function createProfilePage({
     event.preventDefault();
     const name = listenerForm.elements.listenerName.value.trim();
     const languages = listenerForm.elements.languages.value;
-    const about = listenerForm.elements.about.value.trim();
-    if (!name || !languages || !about) return;
+    if (!name || !languages) return;
 
-    listenerState = { name, languages, about, interests: [...listenerInterests] };
+    listenerState = { name, languages, interests: [...listenerInterests] };
 
     // Move to step 2
     document.getElementById('listenerStep1').classList.add('hidden');
@@ -488,16 +631,15 @@ export function createProfilePage({
           await createListenerProfile(authState, {
             displayName: listenerState.name,
             language: listenerState.languages,
-            bio: listenerState.about,
             gender: gender,
             interests: listenerState.interests || [],
           });
           listenerStatus = 'approved';
           approvalStatus.innerHTML = '<span class="approval-icon">✅</span> Profile approved! You can start earning.';
 
-          // Update UI: show dashboard, hide join button
+          // Update UI: show dashboard button, hide join button
+          if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = '';
           if (listenerDashboard) {
-            listenerDashboard.style.display = 'block';
             document.getElementById('coinsEarned').textContent = 0;
             document.getElementById('availableCoins').textContent = 0;
           }
@@ -519,7 +661,6 @@ export function createProfilePage({
           await createListenerProfile(authState, {
             displayName: listenerState.name,
             language: listenerState.languages,
-            bio: listenerState.about,
             gender: gender,
             interests: listenerState.interests || [],
           });

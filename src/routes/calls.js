@@ -10,6 +10,31 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 const router = Router();
 
 /**
+ * POST /api/calls/end/:callSid
+ * Ends an active Twilio call.
+ */
+router.post('/end/:callSid', async (req, res) => {
+  const callSid = String(req.params.callSid || '').trim();
+  if (!callSid) return res.status(400).json({ error: 'CallSid is required' });
+
+  try {
+    await twilioClient.calls(callSid).update({ status: 'completed' });
+  } catch (err) {
+    console.error('End call error:', err.message);
+  }
+
+  // Clear listener busy flag
+  try {
+    const callDoc = await db.collection('activeCalls').doc(callSid).get();
+    if (callDoc.exists && callDoc.data().listenerId) {
+      await db.collection('listenerProfiles').doc(callDoc.data().listenerId).update({ isBusy: false, activeCallSid: null });
+    }
+  } catch (_) {}
+
+  return res.json({ success: true });
+});
+
+/**
  * POST /api/calls/preflight
  * Verifies minimum balance, initiates Twilio call.
  * Actual billing happens post-call via Twilio status callback (1 coin / 10 sec).
@@ -40,6 +65,9 @@ router.post('/preflight', async (req, res) => {
     }
     if (!listener.isOnline) {
       return res.status(400).json({ error: 'Listener is offline' });
+    }
+    if (listener.isBusy) {
+      return res.status(409).json({ error: 'Listener is on another call' });
     }
     if (!listener.phone) {
       return res.status(400).json({ error: 'Listener phone not available' });
@@ -90,6 +118,17 @@ router.post('/preflight', async (req, res) => {
 
   // Save call metadata for status callback tracking
   const callSid = callResult?.callSid || null;
+
+  // Mark listener as busy
+  if (callSid && listenerId) {
+    try {
+      await db.collection('listenerProfiles').doc(listenerId).update({ isBusy: true, activeCallSid: callSid });
+      console.log('Listener marked busy — listenerId:', listenerId);
+    } catch (busyErr) {
+      console.error('Failed to mark listener busy:', busyErr.message);
+    }
+  }
+
   if (callSid) {
     try {
       await db.collection('activeCalls').doc(callSid).set({
@@ -379,6 +418,16 @@ router.post('/status', async (req, res) => {
     await callRef.update(statusUpdate);
   } catch (err) {
     console.error('Failed to update call status:', err.message);
+  }
+
+  // Clear listener busy flag when call is finalized
+  if (statusUpdate.finalized && callData.listenerId) {
+    try {
+      await db.collection('listenerProfiles').doc(callData.listenerId).update({ isBusy: false, activeCallSid: null });
+      console.log('Listener busy cleared — listenerId:', callData.listenerId);
+    } catch (clearErr) {
+      console.error('Failed to clear listener busy:', clearErr.message);
+    }
   }
 
   return res.sendStatus(200);

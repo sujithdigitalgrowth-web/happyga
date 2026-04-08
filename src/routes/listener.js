@@ -10,8 +10,8 @@ router.post('/listener-profile', async (req, res) => {
 
   const displayName = String(req.body?.displayName || '').trim();
   const language = String(req.body?.language || '').trim();
-  const bio = String(req.body?.bio || '').trim();
   const gender = String(req.body?.gender || '').trim();
+  const interests = Array.isArray(req.body?.interests) ? req.body.interests.slice(0, 3).map(s => String(s).trim()).filter(Boolean) : [];
 
   if (!displayName || !language || !gender) {
     return res.status(400).json({ error: 'displayName, language, and gender are required' });
@@ -23,10 +23,11 @@ router.post('/listener-profile', async (req, res) => {
 
   const data = {
     uid: user.uid,
+    phone: user.phone || null,
     displayName,
     language,
-    bio,
     gender,
+    interests,
     avatar,
     status: gender === 'female' ? 'approved' : 'pending',
     availableCoins: 0,

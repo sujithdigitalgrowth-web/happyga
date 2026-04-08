@@ -40,15 +40,15 @@ export function createHomePage({ listElement, onStartCall, authState }) {
             <div class="profile-copy">
               <div class="profile-heading">
                 <h2>${profile.age ? `${profile.name}, ${profile.age}` : profile.name}</h2>
-                <span class="presence-chip ${profile.isOnline ? 'online' : 'offline'}">
+                ${profile.isBusy ? '<span class="presence-chip busy"><span class="presence-dot" aria-hidden="true"></span>Busy</span>' : `<span class="presence-chip ${profile.isOnline ? 'online' : 'offline'}">
                   <span class="presence-dot" aria-hidden="true"></span>
                   ${profile.isOnline ? 'Online' : 'Offline'}
-                </span>
+                </span>`}
               </div>
               <p class="bio">${profile.bio}</p>
             </div>
-            <button class="call-btn" data-user="${profile.username}" type="button" aria-label="Call ${profile.name}" ${profile.isOnline ? '' : 'disabled aria-disabled="true"'}>
-              <img class="call-btn-icon" src="${profile.isOnline ? 'assets/icons/call-button-green.svg' : 'assets/icons/call-button.svg'}" alt="" />
+            <button class="call-btn" data-user="${profile.username}" type="button" aria-label="Call ${profile.name}" ${profile.isOnline && !profile.isBusy ? '' : 'disabled aria-disabled="true"'}>
+              <img class="call-btn-icon" src="${profile.isOnline && !profile.isBusy ? 'assets/icons/call-button-green.svg' : 'assets/icons/call-button.svg'}" alt="" />
             </button>
           </div>
         </article>
@@ -77,6 +77,7 @@ export function createHomePage({ listElement, onStartCall, authState }) {
         image,
         fallbackImage: image,
         isOnline: !!listener.isOnline,
+        isBusy: !!listener.isBusy,
       };
     });
   }

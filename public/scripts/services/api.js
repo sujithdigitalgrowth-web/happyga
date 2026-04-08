@@ -198,3 +198,19 @@ export async function getCallStatus(callSid) {
     await apiFetch(`/api/calls/status/${encodeURIComponent(callSid)}`),
   );
 }
+
+export async function getTransactions(authState) {
+  return readJsonResponse(
+    await apiFetch('/api/wallet/transactions', {
+      headers: buildApiHeaders(authState),
+    }),
+  );
+}
+
+export async function endCall(callSid) {
+  return readJsonResponse(
+    await apiFetch(`/api/calls/end/${encodeURIComponent(callSid)}`, {
+      method: 'POST',
+    }),
+  );
+}

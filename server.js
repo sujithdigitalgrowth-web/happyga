@@ -22,7 +22,7 @@ const app = express();
 app.use(cors({
   origin: (origin, cb) => cb(null, true),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Uid', 'X-Token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Uid', 'X-Token', 'x-happyga-phone', 'x-happyga-auth-mode'],
 }));
 app.options('*', cors());
 
@@ -37,6 +37,46 @@ app.use('/api/sessions',     sessionRoutes);
 app.use('/api/calls',        callRoutes);
 app.use('/api/withdrawals',  withdrawalRoutes);
 app.use('/api',              listenerRoutes);
+
+// ── Delete Account ──
+const { resolveUserIdentity } = require('./src/middleware/auth');
+const { db, auth: fbAuth } = require('./src/firebase-admin');
+
+app.delete('/api/account', async (req, res) => {
+  try {
+    const identity = await resolveUserIdentity(req);
+    if (!identity) return res.status(401).json({ error: 'Unauthorized' });
+    const { uid } = identity;
+
+    // Delete Firestore user doc + subcollections
+    if (db) {
+      const userRef = db.collection('users').doc(uid);
+      const subs = ['transactions', 'sessions'];
+      for (const sub of subs) {
+        const snap = await userRef.collection(sub).limit(500).get();
+        const batch = db.batch();
+        snap.docs.forEach((d) => batch.delete(d.ref));
+        if (!snap.empty) await batch.commit();
+      }
+      await userRef.delete();
+
+      // Delete listener profile if exists
+      const listenerRef = db.collection('listeners').doc(uid);
+      const listenerSnap = await listenerRef.get();
+      if (listenerSnap.exists) await listenerRef.delete();
+    }
+
+    // Delete Firebase Auth user
+    if (fbAuth) {
+      try { await fbAuth.deleteUser(uid); } catch {}
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[delete-account]', err);
+    return res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
 
 // Raw-number proxy: POST /api/call { toNumber }  (used by test page & call screen dial)
 app.post('/api/call', async (req, res) => {

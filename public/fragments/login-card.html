@@ -1,32 +1,56 @@
 <section class="login-card" aria-label="Phone verification login">
-  <div class="brand-row">
-    <div class="brand-mark">
+  <!-- Hero area -->
+  <div class="login-hero">
+    <div class="hero-bubbles" aria-hidden="true">
+      <span class="bubble b1">💬</span>
+      <span class="bubble b2">❤️</span>
+      <span class="bubble b3">🎧</span>
+      <span class="bubble b4">✨</span>
+      <span class="bubble b5">😊</span>
+    </div>
+    <div class="brand-mark-lg">
       <img src="assets/brand/logo.png" alt="happyga logo" />
     </div>
-    <div>
-      <p class="brand-eyebrow">Welcome to</p>
-      <h1>happyga</h1>
-    </div>
+    <h1 class="hero-title">happyga</h1>
+    <p class="hero-tagline">Talk. Connect. Feel happy.</p>
   </div>
 
-  <p class="subtitle">Login with your phone number to continue.</p>
+  <!-- Features strip -->
+  <div class="features-strip">
+    <div class="feature-pill"><span class="feature-icon">🎙</span> Voice Calls</div>
+    <div class="feature-pill"><span class="feature-icon">🔒</span> Private</div>
+    <div class="feature-pill"><span class="feature-icon">⚡</span> Instant</div>
+  </div>
 
-  <form id="phoneForm" class="form-grid">
-    <label class="field-label" for="phoneInput">Phone number</label>
-    <div class="phone-row">
-      <span class="country-code">+91</span>
-      <input id="phoneInput" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" required />
-    </div>
-    <button id="sendOtpBtn" class="primary-btn" type="submit">Send OTP</button>
-  </form>
+  <!-- Login form -->
+  <div class="login-form-area">
+    <p class="login-prompt">Enter your phone number to get started</p>
 
-  <form id="otpForm" class="form-grid hidden" aria-live="polite">
-    <label class="field-label" for="otpInput">Enter OTP</label>
-    <input id="otpInput" class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" required />
-    <p id="otpHint" class="hint-text"></p>
-    <button id="verifyOtpBtn" class="primary-btn" type="submit">Verify & Continue</button>
-    <button id="resendOtpBtn" class="ghost-btn" type="button">Resend OTP</button>
-  </form>
+    <form id="phoneForm" class="form-grid">
+      <div class="phone-row">
+        <span class="country-flag">🇮🇳</span>
+        <span class="country-code">+91</span>
+        <input id="phoneInput" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" required />
+      </div>
+      <button id="sendOtpBtn" class="primary-btn" type="submit">
+        <span class="btn-text">Send OTP</span>
+        <span class="btn-arrow">→</span>
+      </button>
+    </form>
 
-  <p id="statusText" class="status-text" role="status"></p>
+    <form id="otpForm" class="form-grid hidden" aria-live="polite">
+      <label class="field-label" for="otpInput">Enter the 6-digit OTP</label>
+      <input id="otpInput" class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="• • • • • •" required />
+      <p id="otpHint" class="hint-text"></p>
+      <button id="verifyOtpBtn" class="primary-btn" type="submit">
+        <span class="btn-text">Verify & Continue</span>
+        <span class="btn-arrow">→</span>
+      </button>
+      <button id="resendOtpBtn" class="ghost-btn" type="button">Resend OTP</button>
+    </form>
+
+    <p id="statusText" class="status-text" role="status"></p>
+  </div>
+
+  <p class="login-footer">By continuing, you agree to our Terms & Privacy Policy</p>
 </section>

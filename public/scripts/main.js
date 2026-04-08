@@ -15,6 +15,7 @@ import {
   startDemoCall,
   apiFetch,
   getCallStatus,
+  endCall,
 } from './services/api.js';
 
 async function init() {
@@ -243,12 +244,17 @@ async function init() {
   }
 
   function closeCallScreen() {
+    const sidToEnd = activeCallSid;
     stopCallTimer();
     stopCallPolling();
     callState = 'idle';
     activeCallSid = null;
     if (callScreenModal) {
       callScreenModal.classList.add('hidden');
+    }
+    // End the Twilio call
+    if (sidToEnd) {
+      endCall(sidToEnd).catch(() => {});
     }
     // Re-enable all call buttons (except offline ones)
     document.querySelectorAll('.call-btn[data-user]').forEach((btn) => {
