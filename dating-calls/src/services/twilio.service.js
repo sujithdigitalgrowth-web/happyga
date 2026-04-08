@@ -17,7 +17,7 @@ async function makeCall(toNumber, options = {}) {
 
   if (options.statusCallback) {
     callParams.statusCallback = options.statusCallback;
-    callParams.statusCallbackEvent = ['initiated', 'ringing', 'answered', 'completed'];
+    callParams.statusCallbackEvent = ['initiated', 'ringing', 'answered', 'completed', 'busy', 'no-answer', 'failed', 'canceled'];
     callParams.statusCallbackMethod = 'POST';
   }
 

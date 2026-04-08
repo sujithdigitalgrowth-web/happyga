@@ -149,6 +149,13 @@ async function init() {
     }
   }
 
+  function terminateTwilioCall() {
+    const sid = activeCallSid;
+    if (sid) {
+      endCall(sid).catch((err) => console.warn('endCall failed:', err));
+    }
+  }
+
   function startCallPolling(callSid) {
     activeCallSid = callSid;
     let wasConnected = false;
@@ -185,6 +192,7 @@ async function init() {
         // terminal Twilio statuses before finalized (edge case)
         const terminalStatuses = new Set(['busy', 'no-answer', 'failed', 'canceled']);
         if (terminalStatuses.has(s.status) && callState !== 'failed' && callState !== 'ended') {
+          terminateTwilioCall();
           const labels = { busy: 'User is busy', 'no-answer': 'No answer', failed: 'Call failed', canceled: 'Call canceled' };
           setCallState('failed', {
             statusLabel: labels[s.status] || 'Call ended',
@@ -193,6 +201,7 @@ async function init() {
         }
 
         if (s.status === 'completed' && callState !== 'ended' && callState !== 'failed') {
+          terminateTwilioCall();
           if (wasConnected || s.answered) {
             setCallState('ended', {
               durationSeconds: s.durationSeconds || callTimerSeconds,
@@ -203,10 +212,10 @@ async function init() {
             setCallState('failed', { statusLabel: 'No answer', note: 'The call could not be completed.' });
           }
         }
-      } catch {
-        // polling error — ignore, retry next tick
+      } catch (pollErr) {
+        console.warn('[poll] error:', pollErr);
       }
-    }, 2000);
+    }, 1500);
   }
 
   let walletState = {
@@ -254,7 +263,8 @@ async function init() {
     }
     // End the Twilio call
     if (sidToEnd) {
-      endCall(sidToEnd).catch(() => {});
+      console.log('[call] Ending Twilio call:', sidToEnd);
+      endCall(sidToEnd).then(() => console.log('[call] Twilio call ended OK')).catch((err) => console.error('[call] endCall failed:', err));
     }
     // Re-enable all call buttons (except offline ones)
     document.querySelectorAll('.call-btn[data-user]').forEach((btn) => {
