@@ -103,16 +103,21 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 
 ## Features
 
-### 1. Authentication
-- Firebase Phone Auth with OTP — 3 login paths:
+### 1. Authentication (2-Step Login Flow)
+- Firebase Phone Auth with OTP — **2-screen login UX:**
+  - **Step 1 (Phone Screen):** User enters 10-digit phone number → taps "Send OTP"
+  - **Step 2 (OTP Screen):** Phone screen hides, OTP input + "Verify & Continue" + "Resend OTP" + "← Change Number" button appears
+- 3 login paths:
   - **Localhost demo mode:** Bypasses phone verification for local development
   - **Production web:** Firebase `RecaptchaVerifier` (invisible) + `signInWithPhoneNumber` + OTP confirmation
-  - **Native Android:** Capacitor Firebase Auth plugin (`@nicepayments/capacitor-firebase-auth`)
+  - **Native Android:** Capacitor Firebase Auth plugin (`@capacitor-firebase/authentication@8.1.0`)
+- Native OTP has 20-second timeout indicator — shows error message if no response
 - Auth state persisted in localStorage (`happyga_auth`)
 - Auto token refresh via `onIdTokenChanged`
 - Auth guard redirects unauthenticated users to login page
 - Auth headers: `Authorization` (Bearer token), `x-happyga-phone`, `x-happyga-auth-mode`
 - **Important:** Production web domain must be added to Firebase Console → Authentication → Authorized Domains
+- **Important:** Android debug/release SHA-1 and SHA-256 fingerprints must be registered in Firebase Console → Project Settings → Android App
 
 ### 2. Home Page — Listener Feed
 - Fetches approved listener profiles from Firestore via `GET /api/listeners`
@@ -155,27 +160,33 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 - **Session history page:** Renders call status (colored), duration, coins, timestamps
 - **Legacy session support:** Detects and renders old-format sessions gracefully
 
-### 7. Listener Registration (3-Step Flow)
-- **Step 1:** Name, Language (Telugu/Hindi), About description
-- **Step 2:** Voice verification (Web Speech Recognition) + Gender selection
-  - Female → auto-approved; Male → under review
-- **Step 3:** Avatar selection (8 images)
-- Creates `listenerProfiles` doc in Firestore
+### 7. Listener Registration (Simple Pending Approval)
+- **Single-step form:** Display Name + Phone Number
+- Submits to `POST /api/listener-profile` → creates doc with `status: "pending"`
+- **In-app toast notification** confirms submission (no browser `alert()`)
+- **Pending view:** If application is already submitted, shows "Application Under Review" card instead of re-showing the form
+- **Admin approval:** Status changed to `"Approved"` in Firebase Console
+- Once approved, the "Join as Listener" button auto-opens the Listener Dashboard
 
 ### 8. Listener Dashboard
-- **Stat cards:** "Earned" (orange gradient) and "Available" (green gradient) coin counts
+- **Stat cards:** "Total Earned" (orange gradient) and "Available to Withdraw" (green gradient) coin counts
 - **Online/offline badge:** Green dot + "ONLINE" or gray "OFFLINE" in header
 - **Actions:** 3-column grid — Listener Mode, Withdraw, History
 - **Recent Calls:** Scrollable list showing duration, earned coins, timestamp per call
 - **Listener Mode:** Toggle Go Online / Go Offline, persisted to Firestore
+- **Dashboard auto-opens** when user clicks "Join as Listener" button and their status is already approved
 
 ### 9. Profile Page
 - View/edit personal details (name, age)
 - **Interest chips:** 10 selectable chip buttons (max 3), replacing the old textarea
   - Options: Casual Chat, Emotional Support, Relationship Advice, Flirting & Fun, Deep Conversations, Vent / Rant, Daily Life Talks, Motivation & Goals, Movies / Music, Timepass / Chill
   - Stored as array, displayed joined with " • " in profile summary
+- **Listener status label** on the profile button dynamically shows:
+  - "Join as a listener" (no profile)
+  - "Application Under Review" (pending)
+  - "Listener Dashboard" (approved)
 - Approved listeners see the Listener Dashboard
-- Non-listeners see "Join as a listener" button
+- Non-listeners see the registration form
 
 ### 10. Withdrawals
 - Two-step modal flow: enter amount (min ₹1000) → enter UPI ID → submit
@@ -183,6 +194,7 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 - Deducts coins on successful submission
 - **Withdrawal History modal:** Opens immediately with "Loading..." placeholder, loads data async
 - Shows amount, status badge (pending/approved/rejected), timestamps
+- **Modal positioning:** Withdraw and History modals use `dashboard-modal` class (z-index: 200) positioned outside the dashboard overlay to avoid `backdrop-filter` stacking context issues
 
 ### 11. Admin & Security
 - **Admin endpoint** (`GET /api/withdrawals/admin`): Protected by `ADMIN_UIDS` env var allowlist
@@ -329,9 +341,33 @@ npm run cap:sync         # sync web assets to Android
 npm run apk:debug        # build debug APK (requires JAVA_HOME)
 ```
 
+Or manually:
+```bash
+npx cap sync android
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio2\jbr"
+cd android
+.\gradlew.bat installDebug    # builds + installs on connected device
+```
+
 APK output: `android/app/build/outputs/apk/debug/app-debug.apk`
 Package: `com.teknlgy.happyga`
-Requires SHA-1/SHA-256 fingerprints registered in Firebase for OTP.
+
+### Firebase Setup for Android OTP
+1. Go to Firebase Console → Project Settings → Android app (`com.teknlgy.happyga`)
+2. Add **SHA-1** and **SHA-256** fingerprints from your debug keystore:
+   ```bash
+   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android
+   ```
+3. Download updated `google-services.json` and place in `android/app/`
+4. For release builds, also add fingerprints from the release keystore (`happyga-upload.jks`)
+
+### Wireless ADB Debugging
+```bash
+# Enable Wireless Debugging on phone → Settings → Developer Options
+adb pair <ip>:<pairing-port>      # enter pairing code from phone
+adb connect <ip>:<debug-port>
+adb devices                        # verify device shows as connected
+```
 
 ---
 
@@ -343,3 +379,4 @@ Requires SHA-1/SHA-256 fingerprints registered in Firebase for OTP.
 - Call billing relies on Twilio status callbacks + REST API fallback polling
 - Firestore may need composite indexes for ordered queries (withdrawals, listener sessions)
 - `NATIVE_API_BASE_URLS` in `api.js` has a placeholder Railway domain — update to actual domain before Android APK release
+- `.phone-shell.card` uses `backdrop-filter: blur(8px)` which creates a containing block — `position: fixed` elements inside behave as `position: absolute` relative to the shell. Overlays use CSS variables (`--app-overlay-top/right/bottom/left`) computed relative to shell bounds in `main.js`
