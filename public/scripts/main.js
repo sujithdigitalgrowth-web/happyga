@@ -22,6 +22,10 @@ async function init() {
   await loadFragments();
 
   const authState = readAuthState();
+  const rootStyle = document.documentElement.style;
+  const phoneShell = document.querySelector('.phone-shell');
+  const topbar = document.querySelector('.topbar');
+  const bottomNavElement = document.querySelector('.bottom-nav');
   const profilesList = document.getElementById('profilesList');
   const sessionsList = document.getElementById('sessionsList');
   const navButtons = Array.from(document.querySelectorAll('.nav-item'));
@@ -65,6 +69,27 @@ async function init() {
   let callTimerSeconds = 0;
   let callPollInterval = null;
   let activeCallSid = null;
+
+  function updateOverlayBounds() {
+    if (!phoneShell || !topbar || !bottomNavElement) return;
+
+    const shellRect = phoneShell.getBoundingClientRect();
+    const topbarRect = topbar.getBoundingClientRect();
+    const bottomNavRect = bottomNavElement.getBoundingClientRect();
+
+    // backdrop-filter on .phone-shell.card makes position:fixed relative
+    // to the shell, so compute overlay bounds relative to the shell, not viewport.
+    rootStyle.setProperty('--app-overlay-top', `${Math.max(topbarRect.bottom - shellRect.top, 0)}px`);
+    rootStyle.setProperty('--app-overlay-right', `${0}px`);
+    rootStyle.setProperty('--app-overlay-bottom', `${Math.max(shellRect.bottom - bottomNavRect.top, 0)}px`);
+    rootStyle.setProperty('--app-overlay-left', `${0}px`);
+    rootStyle.setProperty('--app-overlay-width', `${Math.max(shellRect.width, 0)}px`);
+  }
+
+  updateOverlayBounds();
+  window.addEventListener('resize', updateOverlayBounds);
+  window.addEventListener('orientationchange', updateOverlayBounds);
+  window.visualViewport?.addEventListener('resize', updateOverlayBounds);
 
   function formatTimer(sec) {
     const m = String(Math.floor(sec / 60)).padStart(2, '0');

@@ -84,8 +84,7 @@ export function createHomePage({ listElement, onStartCall, authState }) {
 
   async function loadListeners() {
     try {
-      const response = await getListeners(authState);
-      const payload = await response.json();
+      const payload = await getListeners(authState);
       const listeners = Array.isArray(payload?.listeners) ? payload.listeners : [];
       console.log("API listeners raw:", listeners);
 

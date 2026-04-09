@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Install Debug APK on Phone",
+			"type": "shell",
+			"command": "set JAVA_HOME=C:\\Program Files\\Android\\Android Studio2\\jbr && cd android && gradlew.bat installDebug",
+			"group": "build"
+		}
+	]
+}

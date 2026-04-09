@@ -102,11 +102,11 @@
 
         <div class="dashboard-stat-cards">
           <div class="stat-card stat-card--earned">
-            <span class="stat-card-label">Earned</span>
+            <span class="stat-card-label">Total Earned</span>
             <span class="stat-card-value" id="coinsEarned">0</span>
           </div>
           <div class="stat-card stat-card--available">
-            <span class="stat-card-label">Available</span>
+            <span class="stat-card-label">Available to Withdraw</span>
             <span class="stat-card-value" id="availableCoins">0</span>
           </div>
         </div>
@@ -130,18 +130,9 @@
     </div>
   </div>
 
-  <div id="listenerModeSection" style="display: none;">
-    <h3>Listener Mode</h3>
-    <p>Status: <span id="listenerStatusText">Offline</span></p>
-    <div class="listener-mode-actions">
-      <button id="goOnlineBtn" class="primary-btn">Go Online</button>
-      <button id="goOfflineBtn" class="secondary-btn" style="display:none;">Go Offline</button>
-      <button id="backToProfileBtn" class="secondary-btn" type="button">Back to Profile</button>
-    </div>
-    <p style="margin-top:10px;">You will receive calls when you are online</p>
-  </div>
-
-  <div id="withdrawAmountModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawAmountTitle">
+  <!-- Withdraw modals — siblings of dashboard overlay with higher z-index -->
+  <div id="withdrawAmountModal" class="dashboard-modal hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawAmountTitle">
+    <div class="dashboard-modal-backdrop"></div>
     <div class="action-modal card withdrawal-modal">
       <div class="action-modal-head">
         <div>
@@ -160,7 +151,8 @@
     </div>
   </div>
 
-  <div id="withdrawUpiModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawUpiTitle">
+  <div id="withdrawUpiModal" class="dashboard-modal hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawUpiTitle">
+    <div class="dashboard-modal-backdrop"></div>
     <div class="action-modal card withdrawal-modal">
       <div class="action-modal-head">
         <div>
@@ -179,7 +171,8 @@
     </div>
   </div>
 
-  <div id="withdrawHistoryModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawHistoryTitle">
+  <div id="withdrawHistoryModal" class="dashboard-modal hidden" role="dialog" aria-modal="true" aria-labelledby="withdrawHistoryTitle">
+    <div class="dashboard-modal-backdrop"></div>
     <div class="action-modal card withdrawal-modal">
       <div class="action-modal-head">
         <div>

@@ -89,6 +89,9 @@ async function init() {
   const statusText = document.getElementById('statusText');
   const resendOtpBtn = document.getElementById('resendOtpBtn');
   const sendOtpBtn = document.getElementById('sendOtpBtn');
+  const phoneStep = document.getElementById('phoneStep');
+  const otpStep = document.getElementById('otpStep');
+  const changeNumberBtn = document.getElementById('changeNumberBtn');
 
   let confirmationResult = null;
   let nativeVerificationId = '';
@@ -117,7 +120,7 @@ async function init() {
 
   if (!nativeApp) {
     if (isLocalDebugHost()) {
-      showStatus('Demo mode: enter any phone number to log in without OTP.');
+      showStatus('Use your phone number to receive an OTP.');
     }
     // Production web — keep form enabled, use reCAPTCHA + Firebase Web SDK
   }
@@ -142,7 +145,8 @@ async function init() {
 
     await nativeFirebaseAuth.addListener('phoneCodeSent', (event) => {
       nativeVerificationId = event.verificationId;
-      otpForm.classList.remove('hidden');
+      phoneStep.classList.add('hidden');
+      otpStep.classList.remove('hidden');
       otpHint.textContent = `OTP sent to +91 ${currentPhone}`;
       showStatus('');
       otpInput.value = '';
@@ -193,7 +197,8 @@ async function init() {
     try {
       const verifier = ensureRecaptchaVerifier();
       confirmationResult = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`, verifier);
-      otpForm.classList.remove('hidden');
+      phoneStep.classList.add('hidden');
+      otpStep.classList.remove('hidden');
       otpHint.textContent = `OTP sent to +91 ${phone}`;
       showStatus('');
       otpInput.value = '';
@@ -212,20 +217,6 @@ async function init() {
     if (phone.length !== 10) {
       showStatus('Enter a valid 10-digit phone number.');
       phoneInput.focus();
-      return;
-    }
-
-    // Demo login on localhost (no OTP needed)
-    if (!nativeApp && isLocalDebugHost()) {
-      showStatus('Logging in (demo)...');
-      writeAuthState({
-        phone: `+91${phone}`,
-        uid: `demo_${phone}`,
-        mode: 'demo',
-        idToken: null,
-        verifiedAt: new Date().toISOString(),
-      });
-      window.location.href = 'index.html';
       return;
     }
 
@@ -296,6 +287,15 @@ async function init() {
       return;
     }
     await sendOtp(phone);
+  });
+
+  changeNumberBtn.addEventListener('click', () => {
+    otpStep.classList.add('hidden');
+    phoneStep.classList.remove('hidden');
+    confirmationResult = null;
+    nativeVerificationId = '';
+    showStatus('');
+    phoneInput.focus();
   });
 }
 

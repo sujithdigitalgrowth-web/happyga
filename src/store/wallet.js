@@ -19,13 +19,51 @@ function buildResponse(balance, user) {
   };
 }
 
+async function grantStarterCoins(user) {
+  const userRef = walletRef(user);
+  const starterTransactionRef = userRef.collection('transactions').doc('starter_bonus');
+  const now = new Date();
+
+  await db.runTransaction(async (txn) => {
+    const doc = await txn.get(userRef);
+    const data = doc.exists ? doc.data() : null;
+    const hasCoins = typeof data?.coins === 'number';
+
+    if (hasCoins) {
+      return;
+    }
+
+    txn.set(userRef, {
+      phone: user.phone,
+      coins: DEFAULT_STARTING_COINS,
+      createdAt: data?.createdAt || now,
+      updatedAt: now,
+      starterCoinsGrantedAt: now,
+    }, { merge: true });
+
+    txn.set(starterTransactionRef, {
+      type: 'starter-bonus',
+      coins: DEFAULT_STARTING_COINS,
+      price: null,
+      balanceAfter: DEFAULT_STARTING_COINS,
+      createdAt: now,
+    }, { merge: true });
+  });
+}
+
 async function getWallet(user) {
   const doc = await walletRef(user).get();
   if (!doc.exists) {
-    await walletRef(user).set({ phone: user.phone, coins: DEFAULT_STARTING_COINS, createdAt: new Date() });
+    await grantStarterCoins(user);
     return buildResponse(DEFAULT_STARTING_COINS, user);
   }
-  const balance = doc.data().coins ?? DEFAULT_STARTING_COINS;
+
+  if (typeof doc.data().coins !== 'number') {
+    await grantStarterCoins(user);
+    return buildResponse(DEFAULT_STARTING_COINS, user);
+  }
+
+  const balance = doc.data().coins;
   return buildResponse(balance, user);
 }
 

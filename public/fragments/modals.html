@@ -123,83 +123,41 @@
     <div class="action-modal-head">
       <div>
         <p class="eyebrow">Listener</p>
-        <h2 id="listenerTitle">Create listener profile</h2>
+        <h2 id="listenerTitle">Join Listener Program</h2>
       </div>
       <button class="close-btn modal-close-btn" type="button" data-close-modal="listenerModal" aria-label="Close">✕</button>
     </div>
-
-    <!-- Step 1: Profile details -->
     <div id="listenerStep1">
       <div class="listener-info-card">
-        <p class="listener-info-title">Earning model</p>
-        <p class="listener-info-copy">Users are charged 1 coin per 10 seconds of talk time after the call is answered. Unanswered calls cost 0 coins.</p>
-        <p class="listener-info-highlight">Listener payouts are based on actual call duration.</p>
+        <p class="listener-info-title">Payout details</p>
+        <p class="listener-info-copy">You receive payout for completed calls based on talk time.</p>
+        <p class="listener-info-highlight">Estimated payout: up to Rs 6 per minute based on your completed sessions.</p>
       </div>
       <form id="listenerForm" class="profile-form">
         <label class="field-label">
-          <span>Display name</span>
-          <input id="listenerNameInput" name="listenerName" type="text" placeholder="Enter your name" required />
+          <span>Full name</span>
+          <input id="listenerNameInput" name="listenerName" type="text" placeholder="Enter your full name" required />
         </label>
         <label class="field-label">
-          <span>Languages</span>
-          <select id="listenerLanguagesInput" name="languages" class="field-select" required>
-            <option value="" disabled selected>Select language</option>
-            <option value="Telugu">Telugu</option>
-            <option value="Hindi">Hindi</option>
-          </select>
+          <span>Phone number</span>
+          <input id="listenerPhoneInput" name="phoneNumber" type="tel" inputmode="tel" placeholder="Enter your phone number" required />
         </label>
-        <div class="field-label">
-          <span>Interests <small class="chip-hint">(pick up to 3)</small></span>
-          <div id="listenerInterestChips" class="interest-chips">
-            <button type="button" class="interest-chip" data-value="Casual Chat">Casual Chat</button>
-            <button type="button" class="interest-chip" data-value="Emotional Support">Emotional Support</button>
-            <button type="button" class="interest-chip" data-value="Relationship Advice">Relationship Advice</button>
-            <button type="button" class="interest-chip" data-value="Flirting &amp; Fun">Flirting &amp; Fun</button>
-            <button type="button" class="interest-chip" data-value="Deep Conversations">Deep Conversations</button>
-            <button type="button" class="interest-chip" data-value="Vent / Rant">Vent / Rant</button>
-            <button type="button" class="interest-chip" data-value="Daily Life Talks">Daily Life Talks</button>
-            <button type="button" class="interest-chip" data-value="Motivation &amp; Goals">Motivation &amp; Goals</button>
-            <button type="button" class="interest-chip" data-value="Movies / Music">Movies / Music</button>
-            <button type="button" class="interest-chip" data-value="Timepass / Chill">Timepass / Chill</button>
-          </div>
-        </div>
-        <button id="listenerContinueBtn" class="save-btn" type="submit">Continue</button>
+        <button id="submitListenerBtn" class="save-btn" type="submit">Submit Profile</button>
       </form>
-    </div>
-
-    <!-- Step 2: Voice verification + gender -->
-    <div id="listenerStep2" class="hidden">
-      <div class="listener-verify-section">
-        <h3 class="listener-step-heading">Voice verification</h3>
-        <p class="listener-info-copy">Read the sentence below aloud so we can verify your voice.</p>
-        <div class="voice-prompt-card">
-          <p class="voice-prompt-text">"Hi nenu happyga lo listener ga join avali anukuntunanu"</p>
-        </div>
-        <button id="voiceRecordBtn" class="voice-record-btn" type="button">
-          <span class="voice-record-icon">🎙</span> Tap to Record
-        </button>
-        <div id="voiceStatus" class="voice-status hidden"></div>
-      </div>
-      <div class="listener-gender-section">
-        <h3 class="listener-step-heading">Select your gender</h3>
-        <div class="gender-options">
-          <label class="gender-option">
-            <input type="radio" name="listenerGender" value="female" required />
-            <span class="gender-label">Female</span>
-          </label>
-          <label class="gender-option">
-            <input type="radio" name="listenerGender" value="male" />
-            <span class="gender-label">Male</span>
-          </label>
-        </div>
-      </div>
-      <button id="submitListenerBtn" class="save-btn" type="button" disabled>Submit Profile</button>
       <div id="listenerApprovalStatus" class="listener-approval hidden"></div>
     </div>
-
-
+    <div id="listenerPendingView" class="hidden">
+      <div class="pending-status-card">
+        <span class="pending-status-icon">⏳</span>
+        <h3 class="pending-status-title">Application Under Review</h3>
+        <p class="pending-status-text">Your listener application has been submitted successfully. Our team is reviewing your profile and will contact you within 24 hours.</p>
+        <p class="pending-status-text"><strong>Status:</strong> Pending Approval</p>
+      </div>
+    </div>
   </div>
 </div>
+
+<div id="appToast" class="app-toast hidden"></div>
 
 <div id="referModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="referTitle">
   <div class="action-modal card">

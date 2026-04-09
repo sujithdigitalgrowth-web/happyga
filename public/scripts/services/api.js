@@ -1,9 +1,9 @@
 import { buildApiHeaders } from './auth.js';
 
 const NATIVE_API_BASE_URLS = [
-  'https://happyga-api.up.railway.app',
   'http://192.168.1.179:3000',
-  'http://192.168.0.5:3000',
+  'https://web-production-a1c42b.up.railway.app',
+  'https://happyga-api.up.railway.app',
   'http://10.0.2.2:3000',
 ];
 
@@ -31,6 +31,35 @@ function getApiBaseUrl() {
   return normalizeBaseUrl(nativeResolvedBaseUrl || NATIVE_API_BASE_URLS[0]);
 }
 
+function getCapacitorHttpPlugin() {
+  return window.Capacitor?.Plugins?.CapacitorHttp || null;
+}
+
+function buildNativeHttpOptions(baseUrl, path, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const headers = { ...(options.headers || {}) };
+  const requestOptions = {
+    url: `${baseUrl}${path}`,
+    method,
+    headers,
+  };
+
+  if (options.body) {
+    const contentType = String(headers['Content-Type'] || headers['content-type'] || '').toLowerCase();
+    if (contentType.includes('application/json') && typeof options.body === 'string') {
+      try {
+        requestOptions.data = JSON.parse(options.body);
+      } catch {
+        requestOptions.data = options.body;
+      }
+    } else {
+      requestOptions.data = options.body;
+    }
+  }
+
+  return requestOptions;
+}
+
 export function buildApiUrl(path) {
   return `${getApiBaseUrl()}${path}`;
 }
@@ -40,9 +69,16 @@ export async function apiFetch(path, options = {}) {
     return fetch(path, options);
   }
 
+  const nativeHttp = getCapacitorHttpPlugin();
   let lastError = null;
   for (const baseUrl of getNativeBaseCandidates()) {
     try {
+      if (nativeHttp) {
+        const response = await nativeHttp.request(buildNativeHttpOptions(baseUrl, path, options));
+        nativeResolvedBaseUrl = baseUrl;
+        return response;
+      }
+
       const response = await fetch(`${baseUrl}${path}`, options);
       nativeResolvedBaseUrl = baseUrl;
       return response;
@@ -55,6 +91,20 @@ export async function apiFetch(path, options = {}) {
 }
 
 async function readJsonResponse(response) {
+  if (response && typeof response.status === 'number' && 'data' in response && !('ok' in response)) {
+    const payload = typeof response.data === 'string'
+      ? (() => {
+          try { return JSON.parse(response.data); } catch { return null; }
+        })()
+      : response.data;
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(payload?.error || `Request failed with status ${response.status}`);
+    }
+
+    return payload;
+  }
+
   const contentType = response.headers.get('content-type') || '';
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
@@ -181,8 +231,12 @@ export async function updateListenerStatus(authState, isOnline) {
   });
 }
 
-export async function getListeners() {
-  return apiFetch('/api/listeners');
+export async function getListeners(authState) {
+  return readJsonResponse(
+    await apiFetch('/api/listeners', {
+      headers: buildApiHeaders(authState),
+    }),
+  );
 }
 
 export async function getListenerSessions(authState) {

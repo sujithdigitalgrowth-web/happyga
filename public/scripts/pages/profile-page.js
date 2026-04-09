@@ -23,8 +23,6 @@ export function createProfilePage({
     interests: ['Casual Chat', 'Deep Conversations', 'Timepass / Chill'],
   };
 
-  let listenerState = null;
-
   function openModal(modal) {
     modal.classList.remove('hidden');
   }
@@ -88,40 +86,7 @@ export function createProfilePage({
 
   initChips();
 
-  // --- Listener interest chips ---
-  let listenerInterests = [];
-  const MAX_LISTENER_INTERESTS = 3;
-
-  function syncListenerChips() {
-    const chips = document.querySelectorAll('#listenerInterestChips .interest-chip');
-    chips.forEach((chip) => {
-      const selected = listenerInterests.includes(chip.dataset.value);
-      chip.classList.toggle('selected', selected);
-      chip.disabled = !selected && listenerInterests.length >= MAX_LISTENER_INTERESTS;
-    });
-  }
-
-  function initListenerChips() {
-    const container = document.getElementById('listenerInterestChips');
-    if (!container) return;
-    container.addEventListener('click', (e) => {
-      const chip = e.target.closest('.interest-chip');
-      if (!chip) return;
-      const val = chip.dataset.value;
-      const idx = listenerInterests.indexOf(val);
-      if (idx > -1) {
-        listenerInterests.splice(idx, 1);
-      } else if (listenerInterests.length < MAX_LISTENER_INTERESTS) {
-        listenerInterests.push(val);
-      }
-      syncListenerChips();
-    });
-  }
-
-  initListenerChips();
-
   personalDetailsBtn.addEventListener('click', () => openModal(detailsModal));
-  listenerProfileBtn.addEventListener('click', () => openModal(listenerModal));
 
   // --- Transactions ---
   const transactionsBtn = document.getElementById('transactionsBtn');
@@ -179,6 +144,132 @@ export function createProfilePage({
   const openListenerDashboardBtn = document.getElementById('openListenerDashboardBtn');
   const listenerDashboardOverlay = document.getElementById('listenerDashboardOverlay');
   const closeListenerDashboardBtn = document.getElementById('closeListenerDashboardBtn');
+  const listenerTitle = document.getElementById('listenerTitle');
+  const submitListenerBtn = document.getElementById('submitListenerBtn');
+  const approvalStatus = document.getElementById('listenerApprovalStatus');
+
+  function setListenerEntryLabel(state) {
+    if (!listenerProfileBtn) return;
+    if (state === 'pending') {
+      listenerProfileBtn.innerHTML = '<strong>Listener Application (Pending)</strong><span class="menu-chevron" aria-hidden="true">›</span>';
+      return;
+    }
+    listenerProfileBtn.innerHTML = '<strong>Join as a listener</strong><span class="menu-chevron" aria-hidden="true">›</span>';
+  }
+
+  const listenerPendingView = document.getElementById('listenerPendingView');
+  const listenerStep1 = document.getElementById('listenerStep1');
+
+  function showListenerApplicationMessage(message, variant = 'review') {
+    if (!approvalStatus) return;
+    approvalStatus.classList.remove('hidden');
+    approvalStatus.className = `listener-approval listener-approval--${variant}`;
+    approvalStatus.innerHTML = `<span class="approval-icon">⏳</span> ${message}`;
+  }
+
+  function showAppToast(message, duration = 3500) {
+    const toast = document.getElementById('appToast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), duration);
+  }
+
+  function setListenerFormDisabled(disabled) {
+    if (!listenerForm) return;
+    Array.from(listenerForm.elements).forEach((element) => {
+      const field = element;
+      if (field && typeof field.disabled === 'boolean') {
+        field.disabled = disabled;
+      }
+    });
+    if (submitListenerBtn) {
+      submitListenerBtn.textContent = disabled ? 'Pending Approval' : 'Submit Profile';
+    }
+  }
+
+  function applyListenerProfileToUi(profile) {
+    const status = String(profile?.status || '').toLowerCase();
+
+    if (!profile) {
+      listenerStatus = 'not_registered';
+      if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
+      if (listenerProfileBtn) listenerProfileBtn.style.display = '';
+      setListenerEntryLabel('not_registered');
+      setListenerFormDisabled(false);
+      if (listenerTitle) listenerTitle.textContent = 'Join Listener Program';
+      if (approvalStatus) approvalStatus.classList.add('hidden');
+      return;
+    }
+
+    if (status === 'approved') {
+      listenerStatus = 'approved';
+      if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = '';
+      if (listenerProfileBtn) listenerProfileBtn.style.display = 'none';
+      if (listenerDashboard) {
+        document.getElementById('coinsEarned').innerText = profile.totalCoinsEarned || 0;
+        document.getElementById('availableCoins').innerText = profile.availableCoins || 0;
+        const switchBtn = document.getElementById('switchListenerModeBtn');
+        if (switchBtn) {
+          switchBtn.textContent = profile.isOnline ? 'Go Offline' : 'Go Online';
+        }
+        syncStatusBadge(!!profile.isOnline);
+      }
+      loadWithdrawalHistory();
+      loadListenerRecentCalls();
+      return;
+    }
+
+    listenerStatus = 'pending';
+    if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
+    if (listenerProfileBtn) listenerProfileBtn.style.display = '';
+    setListenerEntryLabel('pending');
+    if (listenerTitle) listenerTitle.textContent = 'Listener Application Status';
+    if (listenerForm?.elements?.listenerName) {
+      listenerForm.elements.listenerName.value = profile.displayName || '';
+    }
+    if (listenerForm?.elements?.phoneNumber) {
+      listenerForm.elements.phoneNumber.value = profile.phone || '';
+    }
+    setListenerFormDisabled(true);
+    showListenerApplicationMessage('Thank you. Team will reach out to you within 24 hours. Current status: Pending.', 'review');
+  }
+
+  async function refreshListenerState() {
+    const previousStatus = listenerStatus;
+    try {
+      const res = await getListenerProfile(authState);
+      applyListenerProfileToUi(res?.profile || null);
+      if (previousStatus === 'pending' && listenerStatus === 'approved') {
+        if (listenerModal && !listenerModal.classList.contains('hidden')) {
+          closeModal(listenerModal);
+        }
+        showAppToast('Your listener application is approved! Dashboard is now enabled.');
+        if (listenerDashboardOverlay) listenerDashboardOverlay.classList.remove('hidden');
+      }
+    } catch (err) {
+      console.error('Listener fetch failed:', err);
+      applyListenerProfileToUi(null);
+    }
+  }
+
+  listenerProfileBtn.addEventListener('click', async () => {
+    await refreshListenerState();
+    if (listenerStatus === 'approved') {
+      // Status was just updated — open dashboard directly
+      if (listenerDashboardOverlay) listenerDashboardOverlay.classList.remove('hidden');
+    } else if (listenerStatus === 'pending') {
+      if (listenerStep1) listenerStep1.classList.add('hidden');
+      if (listenerPendingView) listenerPendingView.classList.remove('hidden');
+      if (listenerTitle) listenerTitle.textContent = 'Application Status';
+      openModal(listenerModal);
+    } else {
+      if (listenerStep1) listenerStep1.classList.remove('hidden');
+      if (listenerPendingView) listenerPendingView.classList.add('hidden');
+      if (listenerTitle) listenerTitle.textContent = 'Join Listener Program';
+      openModal(listenerModal);
+    }
+  });
 
   if (openListenerDashboardBtn) {
     openListenerDashboardBtn.addEventListener('click', () => {
@@ -251,39 +342,13 @@ export function createProfilePage({
       try {
         await updateListenerStatus(authState, false);
         syncStatusBadge(false);
-        const statusText = document.getElementById('listenerStatusText');
-        if (statusText) statusText.innerText = 'Offline';
-        const goOnlineBtn = document.getElementById('goOnlineBtn');
-        const goOfflineBtn = document.getElementById('goOfflineBtn');
-        if (goOnlineBtn) goOnlineBtn.style.display = 'inline-block';
-        if (goOfflineBtn) goOfflineBtn.style.display = 'none';
+        const switchBtn = document.getElementById('switchListenerModeBtn');
+        if (switchBtn) switchBtn.textContent = 'Go Online';
       } catch (err) {
         console.error('Failed to go offline:', err);
       }
       if (listenerDashboardOverlay) listenerDashboardOverlay.classList.add('hidden');
     });
-  }
-
-  function handleSwitchToListenerMode() {
-    // Hide normal profile options
-    const accountOptions = document.querySelector('.account-options');
-    if (accountOptions) accountOptions.style.display = 'none';
-
-    // Show listener mode section
-    const listenerModeSection = document.getElementById('listenerModeSection');
-    if (listenerModeSection) {
-      listenerModeSection.style.display = 'block';
-    }
-  }
-
-  function handleBackToProfile() {
-    const accountOptions = document.querySelector('.account-options');
-    if (accountOptions) accountOptions.style.display = '';
-
-    const listenerModeSection = document.getElementById('listenerModeSection');
-    if (listenerModeSection) {
-      listenerModeSection.style.display = 'none';
-    }
   }
 
   document
@@ -307,11 +372,6 @@ export function createProfilePage({
       }
       btn.disabled = false;
     });
-
-  const backToProfileBtn = document.getElementById('backToProfileBtn');
-  if (backToProfileBtn) {
-    backToProfileBtn.addEventListener('click', handleBackToProfile);
-  }
 
   function syncStatusBadge(isOnline) {
     const badge = document.getElementById('listenerStatusBadge');
@@ -357,43 +417,6 @@ export function createProfilePage({
     }
   }
 
-  async function handleGoOnline() {
-    try {
-      await updateListenerStatus(authState, true);
-
-      const statusText = document.getElementById("listenerStatusText");
-      const goOnlineBtn = document.getElementById("goOnlineBtn");
-      const goOfflineBtn = document.getElementById("goOfflineBtn");
-
-      if (statusText) statusText.innerText = "Online";
-      if (goOnlineBtn) goOnlineBtn.style.display = "none";
-      if (goOfflineBtn) goOfflineBtn.style.display = "inline-block";
-      syncStatusBadge(true);
-    } catch (err) {
-      console.error("Failed to go online", err);
-    }
-  }
-
-  async function handleGoOffline() {
-    try {
-      await updateListenerStatus(authState, false);
-
-      const statusText = document.getElementById("listenerStatusText");
-      const goOnlineBtn = document.getElementById("goOnlineBtn");
-      const goOfflineBtn = document.getElementById("goOfflineBtn");
-
-      if (statusText) statusText.innerText = "Offline";
-      if (goOnlineBtn) goOnlineBtn.style.display = "inline-block";
-      if (goOfflineBtn) goOfflineBtn.style.display = "none";
-      syncStatusBadge(false);
-    } catch (err) {
-      console.error("Failed to go offline", err);
-    }
-  }
-
-  document.getElementById("goOnlineBtn").addEventListener("click", handleGoOnline);
-  document.getElementById("goOfflineBtn").addEventListener("click", handleGoOffline);
-
   async function loadWithdrawalHistory() {
     try {
       const res = await getWithdrawals(authState);
@@ -430,49 +453,12 @@ export function createProfilePage({
     }
   }
 
-  async function initListenerState() {
-    try {
-      const res = await getListenerProfile(authState);
-
-      if (!res || !res.profile) {
-        if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
-        listenerProfileBtn.style.display = '';
-        return;
-      }
-
-      const profile = res.profile;
-
-      if (profile.status === 'approved') {
-        listenerStatus = 'approved';
-        if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = '';
-        if (listenerDashboard) {
-          document.getElementById("coinsEarned").innerText = profile.totalCoinsEarned || 0;
-          document.getElementById("availableCoins").innerText = profile.availableCoins || 0;
-
-          // Sync online status to dashboard toggle button
-          const switchBtn = document.getElementById('switchListenerModeBtn');
-          if (switchBtn) {
-            switchBtn.textContent = profile.isOnline ? 'Go Offline' : 'Go Online';
-          }
-          syncStatusBadge(!!profile.isOnline);
-        }
-        listenerProfileBtn.style.display = 'none';
-        loadWithdrawalHistory();
-        loadListenerRecentCalls();
-      } else {
-        listenerStatus = 'pending';
-        if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
-        listenerProfileBtn.style.display = '';
-        alert('Your listener profile is under review');
-      }
-    } catch (err) {
-      console.error('Listener fetch failed:', err);
-      if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = 'none';
-      listenerProfileBtn.style.display = '';
+  refreshListenerState();
+  setInterval(async () => {
+    if (listenerStatus === 'pending') {
+      await refreshListenerState();
     }
-  }
-
-  initListenerState();
+  }, 15000);
 
   const withdrawAmountModal = document.getElementById('withdrawAmountModal');
   const withdrawUpiModal = document.getElementById('withdrawUpiModal');
@@ -516,7 +502,7 @@ export function createProfilePage({
     .filter(Boolean)
     .forEach((modal) => {
     modal.addEventListener('click', (event) => {
-      if (event.target === modal) {
+      if (event.target === modal || event.target.classList.contains('dashboard-modal-backdrop')) {
         closeModal(modal);
       }
     });
@@ -538,161 +524,60 @@ export function createProfilePage({
     alert('Profile updated successfully.');
   });
 
-  listenerForm.addEventListener('submit', (event) => {
+  listenerForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const name = listenerForm.elements.listenerName.value.trim();
-    const languages = listenerForm.elements.languages.value;
-    if (!name || !languages) return;
 
-    listenerState = { name, languages, interests: [...listenerInterests] };
+    const displayName = String(listenerForm.elements.listenerName?.value || '').trim();
+    const phoneNumber = String(listenerForm.elements.phoneNumber?.value || '').trim();
+    const digitsOnlyPhone = phoneNumber.replace(/\D/g, '');
 
-    // Move to step 2
-    document.getElementById('listenerStep1').classList.add('hidden');
-    document.getElementById('listenerStep2').classList.remove('hidden');
-    document.getElementById('listenerTitle').textContent = 'Voice verification';
+    if (!displayName) {
+      showListenerApplicationMessage('Please enter your full name.', 'review');
+      return;
+    }
+
+    if (digitsOnlyPhone.length < 10) {
+      showListenerApplicationMessage('Please enter a valid phone number.', 'review');
+      return;
+    }
+
+    setListenerFormDisabled(true);
+    showListenerApplicationMessage('Submitting your profile...', 'review');
+
+    try {
+      await createListenerProfile(authState, {
+        displayName,
+        phoneNumber,
+        // Backward compatibility for older deployed API schema.
+        language: 'Telugu',
+        gender: 'male',
+        interests: [],
+      });
+
+      listenerStatus = 'pending';
+      setListenerEntryLabel('pending');
+      closeModal(listenerModal);
+      showAppToast('Request received. Team will contact you within 24 hours.');
+      await refreshListenerState();
+    } catch (err) {
+      console.error('Listener registration failed:', err);
+      setListenerFormDisabled(false);
+      const reason = String(err?.message || 'Please try again.');
+      showListenerApplicationMessage(`Registration failed: ${reason}`, 'review');
+    }
   });
-
-  // --- Step 2: Voice recognition ---
-  let voiceRecorded = false;
-  const voiceRecordBtn = document.getElementById('voiceRecordBtn');
-  const voiceStatus = document.getElementById('voiceStatus');
-  const submitListenerBtn = document.getElementById('submitListenerBtn');
-  const approvalStatus = document.getElementById('listenerApprovalStatus');
-  const genderRadios = document.querySelectorAll('input[name="listenerGender"]');
-
-  function checkStep2Ready() {
-    const genderSelected = document.querySelector('input[name="listenerGender"]:checked');
-    submitListenerBtn.disabled = !(voiceRecorded && genderSelected);
-  }
-
-  genderRadios.forEach((r) => r.addEventListener('change', checkStep2Ready));
-
-  if (voiceRecordBtn) {
-    voiceRecordBtn.addEventListener('click', () => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        voiceStatus.textContent = 'Speech recognition is not supported in this browser.';
-        voiceStatus.classList.remove('hidden');
-        voiceStatus.className = 'voice-status voice-status--error';
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-IN';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      voiceRecordBtn.disabled = true;
-      voiceRecordBtn.innerHTML = '<span class="voice-record-icon">🎙</span> Listening...';
-      voiceStatus.classList.remove('hidden');
-      voiceStatus.className = 'voice-status voice-status--recording';
-      voiceStatus.textContent = 'Speak now...';
-
-      recognition.start();
-
-      recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        voiceRecorded = true;
-        voiceStatus.className = 'voice-status voice-status--success';
-        voiceStatus.textContent = `Voice captured: "${transcript}"`;
-        voiceRecordBtn.innerHTML = '<span class="voice-record-icon">✔</span> Voice Recorded';
-        checkStep2Ready();
-      };
-
-      recognition.onerror = (e) => {
-        voiceStatus.className = 'voice-status voice-status--error';
-        voiceStatus.textContent = `Error: ${e.error}. Please try again.`;
-        voiceRecordBtn.disabled = false;
-        voiceRecordBtn.innerHTML = '<span class="voice-record-icon">🎙</span> Tap to Record';
-      };
-
-      recognition.onend = () => {
-        if (!voiceRecorded) {
-          voiceRecordBtn.disabled = false;
-          voiceRecordBtn.innerHTML = '<span class="voice-record-icon">🎙</span> Tap to Record';
-        }
-      };
-    });
-  }
-
-  if (submitListenerBtn) {
-    submitListenerBtn.addEventListener('click', async () => {
-      const gender = document.querySelector('input[name="listenerGender"]:checked')?.value;
-      listenerState.gender = gender;
-      listenerState.voiceVerified = true;
-
-      approvalStatus.classList.remove('hidden');
-      if (gender === 'female') {
-        approvalStatus.className = 'listener-approval listener-approval--approved';
-        approvalStatus.innerHTML = '<span class="approval-icon">✅</span> Submitting profile...';
-        submitListenerBtn.classList.add('hidden');
-
-        try {
-          await createListenerProfile(authState, {
-            displayName: listenerState.name,
-            language: listenerState.languages,
-            gender: gender,
-            interests: listenerState.interests || [],
-          });
-          listenerStatus = 'approved';
-          approvalStatus.innerHTML = '<span class="approval-icon">✅</span> Profile approved! You can start earning.';
-
-          // Update UI: show dashboard button, hide join button
-          if (openListenerDashboardBtn) openListenerDashboardBtn.style.display = '';
-          if (listenerDashboard) {
-            document.getElementById('coinsEarned').textContent = 0;
-            document.getElementById('availableCoins').textContent = 0;
-          }
-          listenerProfileBtn.style.display = 'none';
-
-          setTimeout(() => closeModal(listenerModal), 1500);
-        } catch (err) {
-          console.error('Listener registration failed:', err);
-          approvalStatus.className = 'listener-approval listener-approval--review';
-          approvalStatus.innerHTML = '<span class="approval-icon">❌</span> Registration failed. Please try again.';
-          submitListenerBtn.classList.remove('hidden');
-        }
-      } else {
-        approvalStatus.className = 'listener-approval listener-approval--review';
-        approvalStatus.innerHTML = '<span class="approval-icon">⏳</span> Submitting profile...';
-        submitListenerBtn.classList.add('hidden');
-
-        try {
-          await createListenerProfile(authState, {
-            displayName: listenerState.name,
-            language: listenerState.languages,
-            gender: gender,
-            interests: listenerState.interests || [],
-          });
-          listenerStatus = 'pending';
-          approvalStatus.innerHTML = '<span class="approval-icon">⏳</span> Profile under review. We will notify you soon.';
-        } catch (err) {
-          console.error('Listener registration failed:', err);
-          approvalStatus.className = 'listener-approval listener-approval--review';
-          approvalStatus.innerHTML = '<span class="approval-icon">❌</span> Registration failed. Please try again.';
-          submitListenerBtn.classList.remove('hidden');
-        }
-      }
-    });
-  }
 
   // Reset listener modal when closed
   const listenerCloseObserver = new MutationObserver(() => {
     if (listenerModal.classList.contains('hidden')) {
-      document.getElementById('listenerStep1').classList.remove('hidden');
-      document.getElementById('listenerStep2').classList.add('hidden');
-      document.getElementById('listenerTitle').textContent = 'Create listener profile';
-      voiceRecorded = false;
-      listenerInterests = [];
-      syncListenerChips();
-      if (voiceRecordBtn) {
-        voiceRecordBtn.disabled = false;
-        voiceRecordBtn.innerHTML = '<span class="voice-record-icon">🎙</span> Tap to Record';
+      if (listenerPendingView) listenerPendingView.classList.add('hidden');
+      if (listenerStep1) listenerStep1.classList.remove('hidden');
+      if (listenerStatus !== 'pending') {
+        listenerForm.reset();
+        if (approvalStatus) approvalStatus.classList.add('hidden');
+        if (listenerTitle) listenerTitle.textContent = 'Join Listener Program';
+        setListenerFormDisabled(false);
       }
-      if (voiceStatus) { voiceStatus.classList.add('hidden'); voiceStatus.textContent = ''; }
-      if (submitListenerBtn) { submitListenerBtn.disabled = true; submitListenerBtn.classList.remove('hidden'); }
-      if (approvalStatus) { approvalStatus.classList.add('hidden'); }
-      genderRadios.forEach((r) => { r.checked = false; });
     }
   });
   listenerCloseObserver.observe(listenerModal, { attributes: true, attributeFilter: ['class'] });
@@ -790,6 +675,8 @@ export function createProfilePage({
       openModal(withdrawHistoryModal);
       await loadWithdrawalHistory();
     });
+  } else {
+    console.warn('[DEBUG] historyBtn:', !!openWithdrawalHistoryBtn, 'historyModal:', !!withdrawHistoryModal);
   }
 
   logoutBtn.addEventListener('click', onLogout);

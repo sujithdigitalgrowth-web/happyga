@@ -24,30 +24,37 @@
 
   <!-- Login form -->
   <div class="login-form-area">
-    <p class="login-prompt">Enter your phone number to get started</p>
+    <!-- Step 1: Phone number entry -->
+    <div id="phoneStep">
+      <p class="login-prompt">Enter your phone number to get started</p>
+      <form id="phoneForm" class="form-grid">
+        <div class="phone-row">
+          <span class="country-flag">🇮🇳</span>
+          <span class="country-code">+91</span>
+          <input id="phoneInput" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" required />
+        </div>
+        <button id="sendOtpBtn" class="primary-btn" type="submit">
+          <span class="btn-text">Send OTP</span>
+          <span class="btn-arrow">→</span>
+        </button>
+      </form>
+    </div>
 
-    <form id="phoneForm" class="form-grid">
-      <div class="phone-row">
-        <span class="country-flag">🇮🇳</span>
-        <span class="country-code">+91</span>
-        <input id="phoneInput" type="tel" inputmode="numeric" maxlength="10" placeholder="9876543210" required />
-      </div>
-      <button id="sendOtpBtn" class="primary-btn" type="submit">
-        <span class="btn-text">Send OTP</span>
-        <span class="btn-arrow">→</span>
-      </button>
-    </form>
-
-    <form id="otpForm" class="form-grid hidden" aria-live="polite">
-      <label class="field-label" for="otpInput">Enter the 6-digit OTP</label>
-      <input id="otpInput" class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="• • • • • •" required />
-      <p id="otpHint" class="hint-text"></p>
-      <button id="verifyOtpBtn" class="primary-btn" type="submit">
-        <span class="btn-text">Verify & Continue</span>
-        <span class="btn-arrow">→</span>
-      </button>
-      <button id="resendOtpBtn" class="ghost-btn" type="button">Resend OTP</button>
-    </form>
+    <!-- Step 2: OTP verification -->
+    <div id="otpStep" class="hidden">
+      <p class="login-prompt">Verify your number</p>
+      <form id="otpForm" class="form-grid" aria-live="polite">
+        <label class="field-label" for="otpInput">Enter the 6-digit OTP</label>
+        <input id="otpInput" class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="• • • • • •" required />
+        <p id="otpHint" class="hint-text"></p>
+        <button id="verifyOtpBtn" class="primary-btn" type="submit">
+          <span class="btn-text">Verify & Continue</span>
+          <span class="btn-arrow">→</span>
+        </button>
+        <button id="resendOtpBtn" class="ghost-btn" type="button">Resend OTP</button>
+        <button id="changeNumberBtn" class="ghost-btn" type="button">← Change Number</button>
+      </form>
+    </div>
 
     <p id="statusText" class="status-text" role="status"></p>
   </div>
