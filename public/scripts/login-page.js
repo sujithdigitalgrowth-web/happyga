@@ -183,9 +183,20 @@ async function init() {
 
       try {
         await setupNativePhoneListeners();
+
+        // Timeout: if no response in 20s, show error
+        const otpTimeout = setTimeout(() => {
+          if (!nativeVerificationId) {
+            showStatus('OTP request timed out. Check your internet connection and try again.');
+            sendOtpBtn.disabled = false;
+          }
+        }, 20000);
+
         await nativeFirebaseAuth.signInWithPhoneNumber({
           phoneNumber: `+91${phone}`,
         });
+
+        clearTimeout(otpTimeout);
       } catch (err) {
         console.error('Native OTP send error:', err);
         showStatus(getOtpErrorMessage(err, true));
