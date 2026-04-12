@@ -66,8 +66,11 @@
 </div>
 
 <div id="callScreenModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="callScreenTitle">
-  <div class="call-screen card">
-    <p class="eyebrow">Live call</p>
+  <div class="call-screen">
+    <p class="eyebrow" style="margin-bottom: 8px;">Live call</p>
+    <div id="callScreenAvatar" class="call-screen-avatar">
+      <svg width="80" height="80" viewBox="0 0 80 80" fill="none"><circle cx="40" cy="40" r="40" fill="rgba(207,122,40,0.10)"/><circle cx="40" cy="32" r="14" fill="rgba(207,122,40,0.22)"/><ellipse cx="40" cy="58" rx="22" ry="14" fill="rgba(207,122,40,0.22)"/></svg>
+    </div>
     <h2 id="callScreenTitle" class="call-screen-title">Connecting</h2>
     <p id="callScreenStatus" class="call-screen-status is-calling">Calling...</p>
     <p id="callScreenTimer" class="call-screen-timer hidden">00:00</p>

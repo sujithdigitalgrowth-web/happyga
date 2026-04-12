@@ -11,6 +11,7 @@ A coin-based voice-calling dating app where users browse listener profiles, buy 
 - **Database:** Firebase Firestore (`happygadatabase`)
 - **Auth:** Firebase Phone Authentication (OTP — web reCAPTCHA + native Capacitor plugin)
 - **Calls:** Twilio Voice SDK (app-to-app via `Twilio.Device`) + PSTN fallback via dedicated call server
+- **Native Incoming Calls:** Twilio Voice Android SDK 6.6.1 + Firebase Cloud Messaging (FCM) for background/killed-app push notifications
 - **Mobile:** Capacitor Android wrapper (package: `com.teknlgy.happyga`)
 - **Deployment:** Railway (project: `accurate-ambition`, 2 services)
 - **Dev tools:** nodemon, dotenv, ngrok (for Twilio webhooks in local dev)
@@ -37,6 +38,23 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 5. Listener's Twilio.Device receives incoming call → answers
 6. During/after call, Twilio sends status events to POST /api/calls/status (statusCallback)
 7. Status callback finalizes billing: deducts caller coins, credits listener earnings, saves sessions
+```
+
+### Native Incoming Call Flow (Android — Background/Killed App)
+
+```
+1. On app launch, JS calls GET /api/voice/token?platform=android → token includes pushCredentialSid
+2. JS passes token to native TwilioVoicePlugin → Voice.register(token, fcmToken) with Twilio
+3. When a call comes in and the app is backgrounded/killed:
+   a. Twilio sends FCM data message to the device
+   b. HappyGAFirebaseMessagingService receives it → Voice.handleMessage()
+   c. Twilio SDK parses → triggers onCallInvite callback
+   d. IncomingCallNotificationService shows heads-up notification (Accept / Reject)
+4. User taps Accept → MainActivity launched with ACTION_ACCEPT intent
+   → TwilioVoicePlugin.handleAcceptFromIntent() → callInvite.accept() → call connected
+   → JS receives 'happyga:native-call-accepted' event
+5. User taps Reject → IncomingCallBroadcastReceiver → callInvite.reject()
+6. If caller cancels → onCancelledCallInvite → notification dismissed
 ```
 
 ---
@@ -116,9 +134,18 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 │       └── data/users.js                 # Fallback phone lookup
 └── android/                     # Capacitor Android project
     ├── app/
-    │   ├── build.gradle
-    │   ├── google-services.json # Firebase config (must include SHA fingerprints)
-    │   └── src/main/            # Android sources
+    │   ├── build.gradle          # Deps: Twilio Voice Android SDK 6.6.1, Firebase BOM 33.7.0
+    │   ├── google-services.json  # Firebase config (must include SHA fingerprints)
+    │   └── src/main/
+    │       ├── AndroidManifest.xml  # FCM service, broadcast receiver, permissions
+    │       └── java/
+    │           ├── com/happyga/app/
+    │           │   └── MainActivity.java          # Plugin registration + intent handling
+    │           └── com/teknlgy/happyga/
+    │               ├── HappyGAFirebaseMessagingService.java  # FCM → Twilio Voice.handleMessage()
+    │               ├── IncomingCallNotificationService.java  # Heads-up notification (Accept/Reject)
+    │               ├── IncomingCallBroadcastReceiver.java     # Reject action handler
+    │               └── TwilioVoicePlugin.java                # Capacitor bridge plugin (native ↔ JS)
     └── app/build/outputs/apk/debug/app-debug.apk
 ```
 
@@ -159,8 +186,9 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 - New users start with `HAPPYGA_DEFAULT_COINS` (default: 50)
 
 ### 4. Voice Calling — Twilio Voice SDK (App-to-App)
-- **Two call transports:**
+- **Three call transports:**
   - **Voice SDK (primary):** App-to-app via `Twilio.Device` — browser/WebView JS SDK, no phone numbers needed
+  - **Native Android Push (incoming):** Twilio Voice Android SDK 6.6.1 — handles incoming calls when app is backgrounded or killed via FCM push notifications
   - **PSTN (fallback):** Via dating-calls service — dials actual phone numbers through Twilio
 - **Voice SDK flow:**
   1. Frontend calls `POST /api/calls/app-preflight` → verifies balance, creates `activeCalls` record, marks listener busy
@@ -178,6 +206,22 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 - **Idempotent callbacks:** `finalized` flag prevents duplicate processing
 - **Caller identity:** Shows registered display name on incoming calls (fetched from listener profile at startup)
 - **Examples:** 5s = 1 coin, 30s = 3 coins, 60s = 6 coins
+
+### 4a. Native Android Incoming Calls (Background/Killed App)
+- **Twilio Voice Android SDK 6.6.1** registered as native library
+- **Firebase Cloud Messaging** delivers push data messages when app is backgrounded/killed
+- **FCM Push Credential** (`CRe9aeee...`) registered in Twilio Console links FCM to Twilio Voice
+- **Token generation:** `GET /api/voice/token?platform=android` includes `pushCredentialSid` in the VoiceGrant
+- **Push registration:** `Voice.register(accessToken, Voice.RegistrationChannel.FCM, fcmToken)` on app init
+- **Notification:** Heads-up notification with Accept (green) and Reject (red) actions, full-screen intent for lock screen
+- **Capacitor bridge plugin:** `TwilioVoicePlugin` — exposes `registerForCalls`, `acceptCall`, `rejectCall`, `hangup`, `checkIncomingCall` to JS
+- **JS events:** `happyga:native-incoming-call`, `happyga:native-call-accepted`, `happyga:native-call-disconnected`, `happyga:native-call-failed`
+- **Audio routing:** Automatically switches to `AudioManager.MODE_IN_COMMUNICATION` during native calls
+- **Native Java files:**
+  - `HappyGAFirebaseMessagingService` — receives FCM messages, routes Twilio pushes to Voice SDK
+  - `IncomingCallNotificationService` — shows/cancels incoming call notifications
+  - `IncomingCallBroadcastReceiver` — handles Reject action from notification
+  - `TwilioVoicePlugin` — Capacitor plugin bridge (native ↔ JS)
 
 ### 5. TwiML Webhook (`/twilio/voice/client`)
 - Handles incoming Voice SDK connections from Twilio
@@ -332,6 +376,7 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 | `TWILIO_API_KEY` | — | Twilio API Key SID (for Voice SDK Access Tokens) |
 | `TWILIO_API_SECRET` | — | Twilio API Key Secret (for Voice SDK Access Tokens) |
 | `TWIML_APP_SID` | — | Twilio TwiML Application SID (routes Voice SDK connections) |
+| `TWILIO_PUSH_CREDENTIAL_SID_ANDROID` | — | Twilio FCM Push Credential SID (`CR...`) for native Android incoming calls |
 | `FIREBASE_SERVICE_ACCOUNT` | — | Firebase service account JSON string (for Railway / production) |
 | `ADMIN_UIDS` | — | Comma-separated Firebase UIDs for admin access |
 
@@ -364,12 +409,23 @@ Both services have their own `package.json`, `Procfile`, and `railway.json`.
 # Save the Application SID (AP...)
 ```
 
-### 3. Configure Environment
+### 3. Create FCM Push Credential (for native Android incoming calls)
+```
+1. Go to Firebase Console → Project Settings → Service Accounts
+2. Generate a new private key (JSON file)
+3. Go to Twilio Console → Voice → Manage → Push Credentials → Create new push Credential
+4. Select FCM, give it a friendly name (e.g. "happyga-android-fcm")
+5. Upload the Firebase service account JSON (FCM V1 credential type)
+6. Save — copy the SID (CR...)
+```
+
+### 4. Configure Environment
 ```bash
 TWILIO_API_KEY=SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_API_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWIML_APP_SID=APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 STATUS_CALLBACK_BASE_URL=https://<your-publicly-accessible-url>
+TWILIO_PUSH_CREDENTIAL_SID_ANDROID=CRxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ### Important: STATUS_CALLBACK_BASE_URL
@@ -441,6 +497,7 @@ Railway project: **accurate-ambition** — 2 services from the same repo.
 | `TWILIO_API_KEY` | Twilio API Key SID |
 | `TWILIO_API_SECRET` | Twilio API Key Secret |
 | `TWIML_APP_SID` | Twilio TwiML App SID |
+| `TWILIO_PUSH_CREDENTIAL_SID_ANDROID` | Twilio FCM Push Credential SID (`CR...`) |
 | `ADMIN_UIDS` | Comma-separated Firebase UIDs |
 
 **Dating-calls service:**
@@ -461,12 +518,13 @@ https://web-production-a1c42b.up.railway.app/twilio/voice/client
 
 ### Post-Deploy Checklist
 1. Add `web-production-a1c42b.up.railway.app` to Firebase Console → Authentication → Authorized Domains
-2. Set all env vars above in Railway dashboard for both services
+2. Set all env vars above in Railway dashboard for both services (including `TWILIO_PUSH_CREDENTIAL_SID_ANDROID`)
 3. Update TwiML App Voice Request URL to the Railway domain
 4. Verify `GET /health` returns 200 on both services
 5. Test OTP login on the web domain
 6. Test wallet balance, listener feed, call preflight
 7. Make a test call and verify: call connects, audio works, session recorded, coins deducted
+8. Test native incoming call: background the Android app → call the listener from web → verify notification appears → accept/reject
 
 ---
 
@@ -529,6 +587,9 @@ The Android APK connects to the backend via `NATIVE_API_BASE_URLS` in `public/sc
 - STATUS_CALLBACK_BASE_URL must be publicly accessible — ngrok required for local dev, Railway URL for production
 - TwiML App Voice Request URL must match wherever the `/twilio/voice/client` route is hosted
 - `.phone-shell.card` uses `backdrop-filter: blur(8px)` which creates a containing block — `position: fixed` elements inside behave as `position: absolute` relative to the shell. Overlays use CSS variables (`--app-overlay-top/right/bottom/left`) computed relative to shell bounds in `main.js`
+- Native incoming call requires `TWILIO_PUSH_CREDENTIAL_SID_ANDROID` env var — without it, token won't include push credential and `Voice.register()` will fail silently
+- Android notification channel `happyga_incoming_calls` is created at `IMPORTANCE_HIGH` — user can still mute it in system settings
+- Native call accept from notification launches MainActivity via `ACTION_ACCEPT` intent — requires `launchMode="singleTask"` (already set by Capacitor)
 
 ---
 
@@ -542,3 +603,4 @@ The Android APK connects to the backend via `NATIVE_API_BASE_URLS` in `public/sc
 6. **Open localhost:3000** in browser for web testing
 7. **For Android:** Connect phone via ADB → `gradlew.bat installDebug`
 8. **Test call:** Make a call → verify audio, disconnect, sessions, and coin billing all work
+9. **Test native push:** Background/kill the Android app → initiate a call to the listener from LocalHost → verify incoming call notification appears → test accept and reject

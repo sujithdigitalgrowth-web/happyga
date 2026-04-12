@@ -7,12 +7,25 @@ let currentIncomingCall = null;
 const wiredCalls = new WeakSet();
 let isVoiceInitInProgress = false;
 let isVoiceRegisterInProgress = false;
+let nativePushRegistered = false;
+
+/** Detect if running inside Capacitor on Android */
+function isNativeAndroid() {
+  return Boolean(window.Capacitor?.isNativePlatform?.() && window.Capacitor?.getPlatform?.() === 'android');
+}
+
+/** Get reference to the native TwilioVoice Capacitor plugin */
+function getNativePlugin() {
+  return window.Capacitor?.Plugins?.TwilioVoice || null;
+}
 
 async function fetchVoiceToken() {
   const authState = readAuthState();
   if (!authState) throw new Error('Not authenticated');
 
-  const response = await apiFetch('/api/voice/token', {
+  // Pass platform hint so backend can include push credential SID for Android
+  const platform = isNativeAndroid() ? 'android' : 'web';
+  const response = await apiFetch(`/api/voice/token?platform=${platform}`, {
     headers: buildApiHeaders(authState),
   });
 
@@ -154,6 +167,16 @@ export async function initVoiceDevice() {
 
     await voiceDevice.register();
     console.log('[Voice] Device registration initiated');
+
+    // On Android, also register for native push notifications so
+    // incoming calls work when the app is backgrounded/closed
+    if (isNativeAndroid()) {
+      registerNativePush().catch(err => {
+        console.warn('[Voice] Native push registration deferred:', err.message || err);
+      });
+      setupNativeCallListeners();
+    }
+
     return voiceDevice;
   } catch (err) {
     console.error('[Voice] initVoiceDevice failed:', err.message);
@@ -278,4 +301,156 @@ export function rejectIncomingCall() {
 
 export function clearIncomingCall() {
   currentIncomingCall = null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Native Android push registration (Twilio Voice SDK)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Register the Android device's FCM token with Twilio so it can receive
+ * push notifications for incoming calls even when the app is backgrounded.
+ *
+ * Should be called after initVoiceDevice() succeeds on Android.
+ * Uses the same access token from fetchVoiceToken().
+ */
+export async function registerNativePush() {
+  if (!isNativeAndroid()) return;
+  if (nativePushRegistered) {
+    console.log('[Voice] Native push already registered, skipping');
+    return;
+  }
+
+  const plugin = getNativePlugin();
+  if (!plugin) {
+    console.warn('[Voice] TwilioVoice native plugin not available');
+    return;
+  }
+
+  try {
+    const { token } = await fetchVoiceToken();
+    console.log('[Voice] Registering native push with Twilio...');
+    await plugin.registerForCalls({ accessToken: token });
+    nativePushRegistered = true;
+    console.log('[Voice] Native push registration successful');
+  } catch (err) {
+    console.error('[Voice] Native push registration failed:', err.message || err);
+  }
+}
+
+/**
+ * Set up listeners for native Twilio Voice plugin events.
+ * These bridge native incoming call events into the same custom event
+ * system used by the web Twilio.Device, so main.js can handle both
+ * web and native incoming calls uniformly.
+ */
+export function setupNativeCallListeners() {
+  if (!isNativeAndroid()) return;
+
+  const plugin = getNativePlugin();
+  if (!plugin) return;
+
+  console.log('[Voice] Setting up native call event listeners');
+
+  // Incoming call received via native push (app was backgrounded)
+  plugin.addListener('incomingCall', (data) => {
+    console.log('[Voice] Native incoming call:', data);
+    window.dispatchEvent(new CustomEvent('happyga:native-incoming-call', {
+      detail: {
+        from: data.from || 'Unknown',
+        callerName: data.callerName || '',
+        callerUid: data.callerUid || '',
+        listenerUid: data.listenerUid || '',
+        callSid: data.callSid || '',
+        isNative: true,
+      },
+    }));
+  });
+
+  // Call accepted (either from notification tap or JS acceptCall)
+  plugin.addListener('callAccepted', (data) => {
+    console.log('[Voice] Native call accepted:', data);
+    window.dispatchEvent(new CustomEvent('happyga:native-call-accepted', {
+      detail: { callSid: data.callSid || '', isNative: true },
+    }));
+  });
+
+  // Call disconnected
+  plugin.addListener('callDisconnected', (data) => {
+    console.log('[Voice] Native call disconnected:', data);
+    window.dispatchEvent(new CustomEvent('happyga:native-call-disconnected', {
+      detail: { callSid: data.callSid || '', error: data.error || null, isNative: true },
+    }));
+  });
+
+  // Call failed
+  plugin.addListener('callFailed', (data) => {
+    console.error('[Voice] Native call failed:', data);
+    window.dispatchEvent(new CustomEvent('happyga:native-call-failed', {
+      detail: { callSid: data.callSid || '', error: data.error || 'Unknown error', isNative: true },
+    }));
+  });
+
+  // Check if there's already a pending call invite (app launched from notification)
+  plugin.checkIncomingCall().then((result) => {
+    if (result.hasIncoming) {
+      console.log('[Voice] Pending native incoming call found:', result);
+      window.dispatchEvent(new CustomEvent('happyga:native-incoming-call', {
+        detail: {
+          from: result.from || 'Unknown',
+          callerName: result.callerName || '',
+          callerUid: result.callerUid || '',
+          listenerUid: result.listenerUid || '',
+          callSid: result.callSid || '',
+          isNative: true,
+        },
+      }));
+    }
+  }).catch(err => {
+    console.warn('[Voice] checkIncomingCall failed:', err);
+  });
+}
+
+/**
+ * Accept a native incoming call (called from UI).
+ */
+export async function acceptNativeCall() {
+  const plugin = getNativePlugin();
+  if (!plugin) return null;
+  try {
+    const result = await plugin.acceptCall();
+    console.log('[Voice] Native call accepted via JS:', result);
+    return result;
+  } catch (err) {
+    console.error('[Voice] Failed to accept native call:', err);
+    return null;
+  }
+}
+
+/**
+ * Reject a native incoming call (called from UI).
+ */
+export async function rejectNativeCall() {
+  const plugin = getNativePlugin();
+  if (!plugin) return;
+  try {
+    await plugin.rejectCall();
+    console.log('[Voice] Native call rejected via JS');
+  } catch (err) {
+    console.error('[Voice] Failed to reject native call:', err);
+  }
+}
+
+/**
+ * Hang up the active native call.
+ */
+export async function hangupNativeCall() {
+  const plugin = getNativePlugin();
+  if (!plugin) return;
+  try {
+    await plugin.hangup();
+    console.log('[Voice] Native call hung up via JS');
+  } catch (err) {
+    console.error('[Voice] Failed to hangup native call:', err);
+  }
 }

@@ -1,6 +1,5 @@
 import { createBottomNav } from './components/bottom-nav.js';
 import { createCoinsModal } from './components/coins-modal.js';
-import { initRandomCallButton } from './components/random-call-button.js';
 import { createHomePage } from './pages/home-page.js';
 import { createProfilePage } from './pages/profile-page.js';
 import { createSessionsPage } from './pages/sessions-page.js';
@@ -54,7 +53,7 @@ async function init() {
   const planButtons = Array.from(document.querySelectorAll('.coin-pack'));
   const selectedPlanText = document.getElementById('selectedPlanText');
   const buyNowBtn = document.getElementById('buyNowBtn');
-  const randomCallBtn = document.getElementById('randomCallBtn');
+
   const coinsModalCard = document.querySelector('.coins-modal');
   const callScreenModal = document.getElementById('callScreenModal');
   const callScreenTitle = document.getElementById('callScreenTitle');
@@ -78,6 +77,13 @@ async function init() {
     const myProfile = await getListenerProfile(authState);
     if (myProfile?.profile?.displayName) myDisplayName = myProfile.profile.displayName;
   } catch { /* not a listener — keep default */ }
+  // Fallback: use the name from the user's profile form if listener profile didn't have a name
+  if (myDisplayName === 'User') {
+    const nameEl = document.getElementById('nameInput');
+    if (nameEl && nameEl.value && nameEl.value.trim() !== '') {
+      myDisplayName = nameEl.value.trim();
+    }
+  }
 
   // --- Call config ---
   const ENABLE_PSTN_FALLBACK = false; // Set true only for debugging / emergency PSTN fallback
@@ -606,6 +612,13 @@ async function init() {
 
     const displayName = String(profile.name || profile.username || '').replace(/^@+/, '');
     callScreenTitle.textContent = displayName;
+
+    // Set avatar image if available
+    const avatarEl = document.getElementById('callScreenAvatar');
+    if (avatarEl && profile.image) {
+      avatarEl.innerHTML = `<img src="${profile.image}" alt="" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">`;
+    }
+
     callScreenModal.classList.remove('hidden');
     setCallState('calling');
   }
@@ -929,14 +942,6 @@ async function init() {
     speakerBtn.addEventListener('click', toggleSpeaker);
   }
 
-  if (callScreenModal) {
-    callScreenModal.addEventListener('click', (event) => {
-      if (event.target === callScreenModal) {
-        closeCallScreen();
-      }
-    });
-  }
-
   // ── Incoming call handling ──
   if (incomingAcceptBtn) {
     incomingAcceptBtn.addEventListener('click', () => {
@@ -999,6 +1004,13 @@ async function init() {
     if (callScreenModal && callScreenTitle) {
       const displayName = callerName || from?.replace(/^client:/, '') || 'Unknown';
       callScreenTitle.textContent = displayName;
+
+      // Reset avatar to default placeholder for incoming calls
+      const avatarEl = document.getElementById('callScreenAvatar');
+      if (avatarEl) {
+        avatarEl.innerHTML = `<svg width="80" height="80" viewBox="0 0 80 80" fill="none"><circle cx="40" cy="40" r="40" fill="rgba(207,122,40,0.10)"/><circle cx="40" cy="32" r="14" fill="rgba(207,122,40,0.22)"/><ellipse cx="40" cy="58" rx="22" ry="14" fill="rgba(207,122,40,0.22)"/></svg>`;
+      }
+
       callScreenModal.classList.remove('hidden');
       setCallState('incoming-ringing', { note: 'Tap Accept to answer.' });
     }
@@ -1024,11 +1036,7 @@ async function init() {
     });
   });
 
-  initRandomCallButton({
-    button: randomCallBtn,
-    getCallButtons: () => homePage.getCallButtons(),
-    showHomeView: () => bottomNav.switchView('home'),
-  });
+
 
   // Topbar logout button
   if (document.getElementById('topLogoutBtn')) {
