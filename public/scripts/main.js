@@ -18,6 +18,7 @@ import {
   endCall,
   syncListenerAppPresence,
   appCallPreflight,
+  getListenerProfile,
 } from './services/api.js';
 
 async function init() {
@@ -70,6 +71,13 @@ async function init() {
   const inCallControls = document.getElementById('inCallControls');
   const muteBtn = document.getElementById('muteBtn');
   const speakerBtn = document.getElementById('speakerBtn');
+
+  // --- Fetch caller display name (for incoming call screen on listener side) ---
+  let myDisplayName = 'User';
+  try {
+    const myProfile = await getListenerProfile(authState);
+    if (myProfile?.profile?.displayName) myDisplayName = myProfile.profile.displayName;
+  } catch { /* not a listener — keep default */ }
 
   // --- Call config ---
   const ENABLE_PSTN_FALLBACK = false; // Set true only for debugging / emergency PSTN fallback
@@ -669,7 +677,7 @@ async function init() {
       preflight = await appCallPreflight(authState, {
         listenerUid: profile.id,
         listenerName: profile.name || '',
-        callerName: authState?.phone || 'User',
+        callerName: myDisplayName,
       });
     } catch (preflightErr) {
       console.error('[call] app-preflight failed:', preflightErr.message);
@@ -698,7 +706,7 @@ async function init() {
       voiceCall = await startVoiceCall(targetIdentity, {
         listenerId: profile.id,
         listenerName: profile.name || '',
-        callerName: authState?.phone || 'User',
+        callerName: myDisplayName,
         callerUid: authState?.uid || '',
         listenerUid: profile.id,
       });
