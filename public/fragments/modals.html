@@ -68,14 +68,22 @@
 <div id="callScreenModal" class="overlay-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="callScreenTitle">
   <div class="call-screen card">
     <p class="eyebrow">Live call</p>
-    <h2 id="callScreenTitle" class="call-screen-title">Calling user</h2>
+    <h2 id="callScreenTitle" class="call-screen-title">Connecting</h2>
     <p id="callScreenStatus" class="call-screen-status is-calling">Calling...</p>
     <p id="callScreenTimer" class="call-screen-timer hidden">00:00</p>
-    <p id="callScreenNote" class="call-screen-note">Trying to connect now.</p>
+    <p id="callScreenNote" class="call-screen-note">Connecting...</p>
     <p id="callScreenSummary" class="call-screen-summary hidden"></p>
+    <div id="inCallControls" class="in-call-controls hidden">
+      <button id="muteBtn" class="in-call-btn" type="button" aria-pressed="false">Mute</button>
+      <button id="speakerBtn" class="in-call-btn" type="button" disabled aria-pressed="false">Speaker</button>
+    </div>
     <div class="call-screen-actions">
       <button id="callScreenCloseBtn" class="call-screen-close" type="button">End</button>
       <button id="callScreenBuyBtn" class="buy-now-btn hidden" type="button">Buy Now</button>
+    </div>
+    <div id="incomingCallActions" class="call-screen-actions hidden">
+      <button id="incomingRejectBtn" class="call-screen-close" type="button">Reject</button>
+      <button id="incomingAcceptBtn" class="call-screen-accept" type="button">Accept</button>
     </div>
   </div>
 </div>

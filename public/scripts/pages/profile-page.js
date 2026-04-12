@@ -1,4 +1,5 @@
-import { createWithdrawal, createListenerProfile, getListenerProfile, getWithdrawals, updateListenerStatus, getListenerSessions, getTransactions } from '../services/api.js';
+import { createWithdrawal, createListenerProfile, getListenerProfile, getWithdrawals, updateListenerStatus, getListenerSessions, getTransactions, syncListenerAppPresence } from '../services/api.js';
+import { isDeviceReady } from '../services/voice.js';
 
 export function createProfilePage({
   profileForm,
@@ -342,6 +343,7 @@ export function createProfilePage({
       try {
         await updateListenerStatus(authState, false);
         syncStatusBadge(false);
+        syncListenerAppPresence(authState, 'offline');
         const switchBtn = document.getElementById('switchListenerModeBtn');
         if (switchBtn) switchBtn.textContent = 'Go Online';
       } catch (err) {
@@ -362,10 +364,12 @@ export function createProfilePage({
           await updateListenerStatus(authState, false);
           btn.textContent = 'Go Online';
           syncStatusBadge(false);
+          syncListenerAppPresence(authState, 'offline');
         } else {
           await updateListenerStatus(authState, true);
           btn.textContent = 'Go Offline';
           syncStatusBadge(true);
+          syncListenerAppPresence(authState, isDeviceReady() ? 'ready' : 'offline');
         }
       } catch (err) {
         console.error('Failed to toggle listener status:', err);

@@ -23,11 +23,28 @@ async function makeCall(toNumber, options = {}) {
 
   if (options.timeLimit && options.timeLimit > 0) {
     callParams.timeLimit = options.timeLimit;
-    console.log('Twilio timeLimit set:', options.timeLimit, 'seconds');
   }
 
-  const call = await client.calls.create(callParams);
-  return { callSid: call.sid, to: toNumber, status: call.status };
+  console.log('[makeCall] ---- Twilio calls.create() params ----');
+  console.log('  to:', callParams.to);
+  console.log('  from:', callParams.from);
+  console.log('  url (TwiML):', callParams.url);
+  console.log('  timeLimit:', callParams.timeLimit || 'not set');
+  console.log('  statusCallback:', callParams.statusCallback || 'not set');
+
+  try {
+    const call = await client.calls.create(callParams);
+    console.log('[makeCall] SUCCESS — callSid:', call.sid, 'status:', call.status);
+    return { callSid: call.sid, to: toNumber, status: call.status };
+  } catch (err) {
+    console.error('[makeCall] TWILIO API ERROR:');
+    console.error('  message:', err.message);
+    console.error('  code:', err.code);
+    console.error('  status:', err.status);
+    console.error('  moreInfo:', err.moreInfo);
+    console.error('  details:', JSON.stringify(err.details));
+    throw err;
+  }
 }
 
 module.exports = { makeCall };

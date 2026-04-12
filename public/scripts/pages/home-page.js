@@ -62,11 +62,36 @@ export function createHomePage({ listElement, onStartCall, authState }) {
     });
   }
 
+  // Max age in ms before we treat appCallLastSeenAt as stale
+  const PRESENCE_STALE_MS = 120_000; // 2 minutes
+
+  function isPresenceStale(listener) {
+    if (!listener.appCallLastSeenAt) return true;
+    // Firestore timestamps can be { _seconds, _nanoseconds } or ISO strings
+    let ts;
+    if (listener.appCallLastSeenAt._seconds) {
+      ts = listener.appCallLastSeenAt._seconds * 1000;
+    } else {
+      ts = new Date(listener.appCallLastSeenAt).getTime();
+    }
+    if (isNaN(ts)) return true;
+    return Date.now() - ts > PRESENCE_STALE_MS;
+  }
+
   function normalizeListenersFromApi(listeners) {
     return listeners.map((listener) => {
       const resolvedName = String(listener.displayName || listener.name || '').trim();
       const generatedUsername = `@${(resolvedName || 'listener').toLowerCase().replace(/\s+/g, '')}`;
       const image = listener.avatar || 'profile-assets/listener-1.png';
+
+      // Derive effective availability from app-call presence fields
+      const stale = isPresenceStale(listener);
+      const appReady = !!listener.appCallReady && listener.appCallStatus === 'ready' && !stale;
+      const appBusy = listener.appCallStatus === 'busy' && !stale;
+
+      // Online = app-call ready, or legacy isOnline as fallback
+      const isOnline = appReady || (!!listener.isOnline && !appBusy);
+      const isBusy = appBusy;
 
       return {
         id: listener.uid,
@@ -76,8 +101,8 @@ export function createHomePage({ listElement, onStartCall, authState }) {
         bio: listener.bio || '',
         image,
         fallbackImage: image,
-        isOnline: !!listener.isOnline,
-        isBusy: !!listener.isBusy,
+        isOnline,
+        isBusy,
       };
     });
   }

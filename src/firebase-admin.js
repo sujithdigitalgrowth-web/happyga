@@ -26,4 +26,13 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const db = admin.apps.length ? getFirestore(admin.app(), 'happygadatabase') : null;
 const auth = admin.apps.length ? admin.auth() : null;
 
+if (db) {
+  console.log('[DEBUG-FIREBASE] Firestore initialized — named database: happygadatabase');
+} else {
+  console.warn('[DEBUG-FIREBASE] Firestore NOT initialized — db is null. User docs will NOT be created.');
+}
+if (auth) {
+  console.log('[DEBUG-FIREBASE] Firebase Auth admin initialized');
+}
+
 module.exports = { admin, db, auth, FieldValue };

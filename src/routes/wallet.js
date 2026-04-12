@@ -6,9 +6,21 @@ const { db } = require('../firebase-admin');
 const router = Router();
 
 router.get('/', async (req, res) => {
+  console.log('[DEBUG-WALLET] GET /api/wallet hit');
   const user = await resolveUserIdentity(req);
-  if (!user) return res.status(401).json({ error: 'Authentication required' });
-  return res.json(await getWallet(user));
+  if (!user) {
+    console.warn('[DEBUG-WALLET] Auth failed — returning 401');
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  console.log('[DEBUG-WALLET] Authenticated user:', JSON.stringify(user));
+  try {
+    const wallet = await getWallet(user);
+    console.log('[DEBUG-WALLET] Wallet response:', JSON.stringify(wallet));
+    return res.json(wallet);
+  } catch (walletErr) {
+    console.error('[DEBUG-WALLET] getWallet FAILED:', walletErr.message);
+    return res.status(500).json({ error: 'Failed to load wallet' });
+  }
 });
 
 router.post('/recharge', async (req, res) => {

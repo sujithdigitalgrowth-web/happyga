@@ -15,6 +15,7 @@ const sessionRoutes      = require('./src/routes/sessions');
 const callRoutes         = require('./src/routes/calls');
 const withdrawalRoutes   = require('./src/routes/withdrawals');
 const listenerRoutes     = require('./src/routes/listener');
+const voiceRoutes        = require('./src/routes/voice');
 
 const app = express();
 
@@ -36,7 +37,43 @@ app.use('/api/wallet',       walletRoutes);
 app.use('/api/sessions',     sessionRoutes);
 app.use('/api/calls',        callRoutes);
 app.use('/api/withdrawals',  withdrawalRoutes);
+app.use('/api/voice',        voiceRoutes);
 app.use('/api',              listenerRoutes);
+
+// ── TwiML webhook for Twilio Voice SDK (app-to-app calls) ──
+const twilio = require('twilio');
+app.post('/twilio/voice/client', (req, res) => {
+  const to = String(req.body?.To || '').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 121);
+  const twiml = new twilio.twiml.VoiceResponse();
+
+  if (to) {
+    console.log('[TwiML] Dialling client identity:', to);
+    const statusCallbackUrl = process.env.STATUS_CALLBACK_BASE_URL
+      ? `${process.env.STATUS_CALLBACK_BASE_URL}/api/calls/status`
+      : null;
+    const dialAttrs = { callerId: req.body?.From || 'client:anonymous' };
+    if (statusCallbackUrl) dialAttrs.action = statusCallbackUrl;
+    const dial = twiml.dial(dialAttrs);
+    const client = dial.client({
+      statusCallback: statusCallbackUrl || undefined,
+      statusCallbackEvent: 'initiated ringing answered completed',
+    }, to);
+    const callerName = String(req.body?.callerName || '').slice(0, 100);
+    const callerUid = String(req.body?.callerUid || '').slice(0, 128);
+    const listenerUid = String(req.body?.listenerUid || '').slice(0, 128);
+    const listenerName = String(req.body?.listenerName || '').slice(0, 100);
+    if (callerName) client.parameter({ name: 'callerName', value: callerName });
+    if (callerUid) client.parameter({ name: 'callerUid', value: callerUid });
+    if (listenerUid) client.parameter({ name: 'listenerUid', value: listenerUid });
+    if (listenerName) client.parameter({ name: 'listenerName', value: listenerName });
+  } else {
+    twiml.say('No destination specified.');
+    twiml.hangup();
+  }
+
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
 
 // ── Delete Account ──
 const { resolveUserIdentity } = require('./src/middleware/auth');

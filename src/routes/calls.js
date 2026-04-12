@@ -7,6 +7,24 @@ const { db, FieldValue } = require('../firebase-admin');
 const twilio = require('twilio');
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
+/**
+ * Normalize an Indian phone number to E.164 format.
+ * - Trims spaces, strips non-digit chars (except leading +)
+ * - 10-digit Indian number → +91XXXXXXXXXX
+ * - Already starts with + → keep as-is
+ */
+function normalizePhoneE164(raw) {
+  if (!raw) return raw;
+  let phone = String(raw).trim();
+  // keep leading + if present, strip everything else that isn't a digit
+  const hasPlus = phone.startsWith('+');
+  phone = phone.replace(/[^\d]/g, '');
+  if (hasPlus) phone = '+' + phone;
+  // 10-digit Indian mobile → prefix +91
+  if (/^\d{10}$/.test(phone)) phone = '+91' + phone;
+  return phone;
+}
+
 const router = Router();
 
 /**
@@ -60,7 +78,7 @@ router.post('/preflight', async (req, res) => {
 
     const listener = listenerDoc.data();
 
-    if (listener.status !== 'approved') {
+    if (String(listener.status || '').toLowerCase() !== 'approved') {
       return res.status(400).json({ error: 'Listener not approved' });
     }
     if (!listener.isOnline) {
@@ -73,8 +91,17 @@ router.post('/preflight', async (req, res) => {
       return res.status(400).json({ error: 'Listener phone not available' });
     }
 
-    listenerPhone = listener.phone;
-    console.log('Firestore listener resolved — listenerId:', listenerId, 'listenerName:', listenerName, 'listenerPhone:', listenerPhone);
+    const rawPhone = listener.phone;
+    listenerPhone = normalizePhoneE164(rawPhone);
+    console.log('[preflight] Listener profile from Firestore:');
+    console.log('  uid/listenerId:', listenerId);
+    console.log('  displayName:', listener.displayName || listenerName);
+    console.log('  phone (raw):', rawPhone);
+    console.log('  phone (E.164):', listenerPhone);
+    console.log('  status:', listener.status);
+    console.log('  isOnline:', listener.isOnline);
+    console.log('  isBusy:', listener.isBusy);
+    console.log('[preflight] Caller uid:', user.uid);
   } else {
     console.log('Fallback demo — target:', target);
   }
@@ -90,7 +117,7 @@ router.post('/preflight', async (req, res) => {
 
   // Calculate max call duration based on current balance (1 coin = 10 sec)
   const startingBalance = wallet.balance;
-  const maxAllowedDurationSeconds = startingBalance * 10;
+  const maxAllowedDurationSeconds = Math.min(startingBalance * 10, 600);
   console.log('Balance check passed — balance:', startingBalance, 'maxAllowedDurationSeconds:', maxAllowedDurationSeconds);
 
   // Trigger real Twilio call (no upfront deduction — billed post-call)
@@ -105,15 +132,22 @@ router.post('/preflight', async (req, res) => {
     };
     console.log('Sending to Twilio call server:', callPayload);
 
-    const callRes = await fetch(`${CALL_SERVER_URL}/api/call/${encodeURIComponent(target)}`, {
+    const callUrl = `${CALL_SERVER_URL}/api/call/${encodeURIComponent(target)}`;
+    console.log('[preflight] Fetching call server:', callUrl);
+    const callRes = await fetch(callUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(callPayload),
     });
     callResult = await callRes.json();
+    console.log('[preflight] Call server response:', JSON.stringify(callResult));
+    if (!callResult.success) {
+      console.error('[preflight] Call server returned failure:', callResult.error, 'code:', callResult.code);
+      return res.status(callRes.status || 502).json({ error: callResult.error || 'Call failed', code: callResult.code, moreInfo: callResult.moreInfo });
+    }
   } catch (err) {
-    console.log('Twilio request failed:', err.message);
-    return res.status(502).json({ error: 'Call failed' });
+    console.error('[preflight] Call server fetch FAILED:', err.message, err.cause || '');
+    return res.status(502).json({ error: 'Call failed — call server unreachable', detail: err.message });
   }
 
   // Save call metadata for status callback tracking
@@ -138,10 +172,12 @@ router.post('/preflight', async (req, res) => {
         listenerId: listenerId || null,
         listenerName: listenerName || null,
         listenerPhone: listenerPhone || null,
+        callTransport: 'pstn',
         routingMode,
         status: 'initiated',
         answered: false,
         charged: false,
+        finalized: false,
         chargedCoins: 0,
         durationSeconds: 0,
         startingBalance,
@@ -169,6 +205,91 @@ router.post('/preflight', async (req, res) => {
     note: callResult?.success
       ? `Calling ${String(target).replace(/^@+/, '')} now. Billed after call ends.`
       : `Demo call for ${String(target).replace(/^@+/, '')}. No charge.`,
+  });
+});
+
+/**
+ * POST /api/calls/app-preflight
+ * Creates an activeCalls record for app-to-app Voice SDK calls.
+ * Called by the frontend before the Twilio Device connects, so the
+ * status callback has the metadata it needs to finalize billing.
+ */
+router.post('/app-preflight', async (req, res) => {
+  const user = await resolveUserIdentity(req);
+  if (!user) return res.status(401).json({ error: 'Authentication required' });
+
+  const callerUid = user.uid;
+  const callerPhone = user.phone || null;
+  const listenerUid = String(req.body?.listenerUid || '').trim();
+  const listenerName = String(req.body?.listenerName || '').trim().slice(0, 100);
+  const callerName = String(req.body?.callerName || '').trim().slice(0, 100);
+
+  if (!listenerUid) {
+    return res.status(400).json({ error: 'listenerUid is required' });
+  }
+
+  // Verify caller has at least 1 coin
+  const wallet = await getWallet(user);
+  if (wallet.balance < 1) {
+    return res.status(402).json({
+      error: 'At least 1 coin is required to start a call',
+      ...wallet,
+    });
+  }
+
+  const startingBalance = wallet.balance;
+  const maxAllowedDurationSeconds = startingBalance * 10;
+
+  // Generate a placeholder call ID — Twilio's real CallSid arrives in the
+  // status callback.  We create the record keyed by a temporary ID so the
+  // frontend can pass it back later, but the callback itself will match
+  // on callSid once Twilio sends it.
+  const tempCallId = `app_${callerUid}_${Date.now()}`;
+
+  try {
+    await db.collection('activeCalls').doc(tempCallId).set({
+      callSid: null,                       // real sid filled by callback
+      tempCallId,
+      callerUid,
+      callerPhone,
+      callerName: callerName || null,
+      listenerId: listenerUid,
+      listenerName: listenerName || null,
+      listenerPhone: null,                 // not used for app-to-app
+      callTransport: 'voice-client',
+      routingMode: 'voice-client',
+      status: 'initiated',
+      answered: false,
+      charged: false,
+      finalized: false,
+      chargedCoins: 0,
+      durationSeconds: 0,
+      startingBalance,
+      maxAllowedDurationSeconds,
+      endedDueToLowBalance: false,
+      createdAt: new Date(),
+    });
+    console.log('[app-preflight] activeCalls record created — tempCallId:', tempCallId, 'callerUid:', callerUid, 'listenerUid:', listenerUid);
+  } catch (err) {
+    console.error('[app-preflight] Failed to create activeCalls record:', err.message);
+    return res.status(500).json({ error: 'Failed to create call record' });
+  }
+
+  // Mark listener busy
+  try {
+    await db.collection('listenerProfiles').doc(listenerUid).update({ isBusy: true, activeCallSid: tempCallId });
+    console.log('[app-preflight] Listener marked busy — listenerUid:', listenerUid);
+  } catch (busyErr) {
+    // Non-fatal — listener doc might not exist for demo profiles
+    console.warn('[app-preflight] Failed to mark listener busy:', busyErr.message);
+  }
+
+  return res.json({
+    allowed: true,
+    tempCallId,
+    callTransport: 'voice-client',
+    maxAllowedDurationSeconds,
+    wallet,
   });
 });
 
@@ -215,45 +336,85 @@ router.post('/ring/:username', async (req, res) => {
 /**
  * POST /api/calls/status
  * Receives Twilio statusCallback events for active calls.
+ * Supports both PSTN and voice-client (app-to-app) transports.
  * Billing: 1 coin per 10 seconds of talk time (charged post-call).
  * Not-answered calls (busy/no-answer/failed/canceled) = 0 coins.
  */
 const NO_CHARGE_STATUSES = new Set(['busy', 'no-answer', 'failed', 'canceled']);
+
+/**
+ * Resolve activeCalls record for the given CallSid.
+ * For voice-client calls the Twilio CallSid won't match the tempCallId we stored,
+ * so we also search by callerUid (from the callback's From identity).
+ */
+async function resolveActiveCall(callSid, reqBody) {
+  // 1) Direct lookup by CallSid
+  const directRef = db.collection('activeCalls').doc(callSid);
+  const directDoc = await directRef.get();
+  if (directDoc.exists) return { ref: directRef, doc: directDoc };
+
+  // 2) For voice-client calls — find the unfinalized record by callerUid
+  //    The callback "From" is "client:<identity>" for SDK calls.
+  const from = String(reqBody.From || '');
+  const callerIdentity = from.startsWith('client:') ? from.slice(7) : null;
+
+  if (callerIdentity) {
+    const snap = await db.collection('activeCalls')
+      .where('callTransport', '==', 'voice-client')
+      .where('finalized', '==', false)
+      .limit(10)
+      .get();
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      // Match on callerUid identity
+      const storedIdentity = String(data.callerUid || '').replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 121);
+      if (storedIdentity === callerIdentity) {
+        // Bind the real CallSid onto the record for future direct lookups
+        try {
+          await d.ref.update({ callSid });
+        } catch (_) {}
+        return { ref: d.ref, doc: d };
+      }
+    }
+  }
+
+  return { ref: null, doc: null };
+}
 
 router.post('/status', async (req, res) => {
   const callSid = req.body.CallSid;
   const callStatus = req.body.CallStatus;
   const callDuration = Number(req.body.CallDuration || req.body.Duration || 0);
 
-  console.log('Twilio status callback — callSid:', callSid, 'status:', callStatus, 'duration:', callDuration);
+  console.log('[status-cb] Twilio callback — callSid:', callSid, 'status:', callStatus, 'duration:', callDuration);
 
   if (!callSid) {
     return res.status(400).send('Missing CallSid');
   }
 
-  const callRef = db.collection('activeCalls').doc(callSid);
-  let callDoc;
+  let callRef, callDoc;
   try {
-    callDoc = await callRef.get();
+    ({ ref: callRef, doc: callDoc } = await resolveActiveCall(callSid, req.body));
   } catch (err) {
-    console.error('Failed to fetch call metadata:', err.message);
+    console.error('[status-cb] Failed to resolve call metadata:', err.message);
     return res.sendStatus(200);
   }
 
-  if (!callDoc.exists) {
-    console.log('No call metadata found for callSid:', callSid, '— skipping');
+  if (!callDoc || !callDoc.exists) {
+    console.log('[status-cb] No call metadata found for callSid:', callSid, '— skipping');
     return res.sendStatus(200);
   }
 
   const callData = callDoc.data();
+  const transport = callData.callTransport || 'pstn';
 
   // Always update the latest status
   const statusUpdate = { status: callStatus, updatedAt: new Date() };
 
   // --- Idempotency: skip if already finalized ---
   if (callData.finalized) {
-    console.log('Duplicate finalization skipped — callSid:', callSid);
-    // Still update status in case Twilio sends additional events
+    console.log('[status-cb] Duplicate finalization skipped — callSid:', callSid, 'transport:', transport);
     try { await callRef.update(statusUpdate); } catch (_) {}
     return res.sendStatus(200);
   }
@@ -261,21 +422,16 @@ router.post('/status', async (req, res) => {
   const LISTENER_PAYOUT_RATE = 0.4;
   const completedAt = new Date();
 
-  // Handle completed/answered calls — charge based on duration
+  // ── Helper: finalize a completed/answered call ──
   if (callStatus === 'completed' && callDuration > 0) {
     const durationSeconds = callDuration;
     const chargedCoins = Math.ceil(durationSeconds / 10);
     const listenerEarnedCoins = Math.floor(chargedCoins * LISTENER_PAYOUT_RATE);
 
-    console.log('Call completed — durationSeconds:', durationSeconds, 'chargedCoins:', chargedCoins, 'listenerEarnedCoins:', listenerEarnedCoins);
-
-    // Detect if call was ended due to balance limit
     const hitLimit = callData.maxAllowedDurationSeconds && durationSeconds >= callData.maxAllowedDurationSeconds;
-    if (hitLimit) {
-      console.log('Call ended due to low balance — maxAllowed:', callData.maxAllowedDurationSeconds, 'actual:', durationSeconds);
-    }
 
     statusUpdate.answered = true;
+    statusUpdate.connected = true;
     statusUpdate.durationSeconds = durationSeconds;
     statusUpdate.chargedCoins = chargedCoins;
     statusUpdate.listenerEarnedCoins = listenerEarnedCoins;
@@ -283,15 +439,16 @@ router.post('/status', async (req, res) => {
     statusUpdate.endedDueToLowBalance = hitLimit || false;
     statusUpdate.completedAt = completedAt;
     statusUpdate.finalized = true;
+    if (!callData.callSid) statusUpdate.callSid = callSid; // bind real sid
 
     // Deduct from caller wallet
     try {
       const user = { uid: callData.callerUid, phone: callData.callerPhone, authMode: 'callback' };
       const walletResult = await setWalletBalance(user, -chargedCoins);
       statusUpdate.charged = true;
-      console.log('Wallet deduction — chargedCoins:', chargedCoins, 'newBalance:', walletResult.balance);
+      console.log('[status-cb] Wallet deduction — chargedCoins:', chargedCoins, 'newBalance:', walletResult.balance);
     } catch (chargeErr) {
-      console.error('Wallet deduction failed — callSid:', callSid, 'error:', chargeErr.message);
+      console.error('[status-cb] Wallet deduction failed — callSid:', callSid, 'error:', chargeErr.message);
     }
 
     // Save session record for caller
@@ -301,30 +458,32 @@ router.post('/status', async (req, res) => {
         listenerId: callData.listenerId || null,
         listenerName: callData.listenerName || null,
         listenerPhone: callData.listenerPhone || null,
+        connected: true,
         durationSeconds,
         chargedCoins,
         finalStatus: callStatus,
         routingMode: callData.routingMode,
+        callTransport: transport,
         endedDueToLowBalance: hitLimit || false,
         createdAt: callData.createdAt,
         completedAt,
       };
       await db.collection('users').doc(callData.callerUid).collection('sessions').add(sessionData);
-      console.log('Session saved for caller — callerUid:', callData.callerUid, 'callSid:', callSid);
+      console.log('[status-cb] Session saved for caller — callerUid:', callData.callerUid);
     } catch (sessionErr) {
-      console.error('Session save failed — callSid:', callSid, 'error:', sessionErr.message);
+      console.error('[status-cb] Session save failed — callSid:', callSid, 'error:', sessionErr.message);
     }
 
-    // Credit listener earnings (only if chargedCoins > 0 and listener exists)
+    // Credit listener earnings
     if (chargedCoins > 0 && listenerEarnedCoins > 0 && callData.listenerId) {
       try {
         await db.collection('listenerProfiles').doc(callData.listenerId).update({
           totalCoinsEarned: FieldValue.increment(listenerEarnedCoins),
           availableCoins: FieldValue.increment(listenerEarnedCoins),
         });
-        console.log('Listener earnings credited — listenerId:', callData.listenerId, 'listenerEarnedCoins:', listenerEarnedCoins);
+        console.log('[status-cb] Listener earnings credited — listenerId:', callData.listenerId, 'listenerEarnedCoins:', listenerEarnedCoins);
       } catch (earnErr) {
-        console.error('Listener earnings credit failed — listenerId:', callData.listenerId, 'error:', earnErr.message);
+        console.error('[status-cb] Listener earnings credit failed — listenerId:', callData.listenerId, 'error:', earnErr.message);
       }
 
       // Save session record for listener
@@ -332,24 +491,30 @@ router.post('/status', async (req, res) => {
         const listenerSessionData = {
           callSid,
           callerUid: callData.callerUid || null,
+          connected: true,
           durationSeconds,
           earnedCoins: listenerEarnedCoins,
           finalStatus: callStatus,
+          callTransport: transport,
           endedDueToLowBalance: hitLimit || false,
           completedAt,
         };
         await db.collection('listenerProfiles').doc(callData.listenerId).collection('sessions').add(listenerSessionData);
-        console.log('Listener session saved — listenerId:', callData.listenerId, 'callSid:', callSid);
+        console.log('[status-cb] Listener session saved — listenerId:', callData.listenerId);
       } catch (lsErr) {
-        console.error('Listener session save failed — listenerId:', callData.listenerId, 'error:', lsErr.message);
+        console.error('[status-cb] Listener session save failed — listenerId:', callData.listenerId, 'error:', lsErr.message);
       }
     }
+
+    // Debug summary
+    console.log('[status-cb] FINALIZED — callSid:', callSid, 'transport:', transport, 'status:', callStatus,
+      'duration:', durationSeconds, 'chargedCoins:', chargedCoins, 'listenerCredited:', listenerEarnedCoins);
   }
 
-  // Handle not-answered calls — 0 charge
+  // ── Handle not-answered calls — 0 charge ──
   if (NO_CHARGE_STATUSES.has(callStatus) && !callData.finalized) {
-    console.log('Call not answered (status:', callStatus, ') — 0 coins charged');
     statusUpdate.answered = false;
+    statusUpdate.connected = false;
     statusUpdate.durationSeconds = 0;
     statusUpdate.chargedCoins = 0;
     statusUpdate.listenerEarnedCoins = 0;
@@ -357,33 +522,37 @@ router.post('/status', async (req, res) => {
     statusUpdate.charged = true;
     statusUpdate.completedAt = completedAt;
     statusUpdate.finalized = true;
+    if (!callData.callSid) statusUpdate.callSid = callSid;
 
-    // Save session record for not-answered calls
     try {
       const sessionData = {
         callSid,
         listenerId: callData.listenerId || null,
         listenerName: callData.listenerName || null,
         listenerPhone: callData.listenerPhone || null,
+        connected: false,
         durationSeconds: 0,
         chargedCoins: 0,
         finalStatus: callStatus,
         routingMode: callData.routingMode,
+        callTransport: transport,
         endedDueToLowBalance: false,
         createdAt: callData.createdAt,
         completedAt,
       };
       await db.collection('users').doc(callData.callerUid).collection('sessions').add(sessionData);
-      console.log('Session saved (not answered) — callerUid:', callData.callerUid, 'callSid:', callSid);
     } catch (sessionErr) {
-      console.error('Session save failed — callSid:', callSid, 'error:', sessionErr.message);
+      console.error('[status-cb] Session save failed — callSid:', callSid, 'error:', sessionErr.message);
     }
+
+    console.log('[status-cb] FINALIZED (no-charge) — callSid:', callSid, 'transport:', transport, 'status:', callStatus,
+      'duration: 0, chargedCoins: 0, listenerCredited: 0');
   }
 
-  // Handle completed with 0 duration (rang but never picked up)
-  if (callStatus === 'completed' && callDuration === 0 && !callData.finalized) {
-    console.log('Call completed with 0 duration — 0 coins charged');
+  // ── Handle completed with 0 duration (rang but never picked up) ──
+  if (callStatus === 'completed' && callDuration === 0 && !callData.finalized && !statusUpdate.finalized) {
     statusUpdate.answered = false;
+    statusUpdate.connected = false;
     statusUpdate.durationSeconds = 0;
     statusUpdate.chargedCoins = 0;
     statusUpdate.listenerEarnedCoins = 0;
@@ -391,27 +560,31 @@ router.post('/status', async (req, res) => {
     statusUpdate.charged = true;
     statusUpdate.completedAt = completedAt;
     statusUpdate.finalized = true;
+    if (!callData.callSid) statusUpdate.callSid = callSid;
 
-    // Save session record
     try {
       const sessionData = {
         callSid,
         listenerId: callData.listenerId || null,
         listenerName: callData.listenerName || null,
         listenerPhone: callData.listenerPhone || null,
+        connected: false,
         durationSeconds: 0,
         chargedCoins: 0,
         finalStatus: callStatus,
         routingMode: callData.routingMode,
+        callTransport: transport,
         endedDueToLowBalance: false,
         createdAt: callData.createdAt,
         completedAt,
       };
       await db.collection('users').doc(callData.callerUid).collection('sessions').add(sessionData);
-      console.log('Session saved (0 duration) — callerUid:', callData.callerUid, 'callSid:', callSid);
     } catch (sessionErr) {
-      console.error('Session save failed — callSid:', callSid, 'error:', sessionErr.message);
+      console.error('[status-cb] Session save failed — callSid:', callSid, 'error:', sessionErr.message);
     }
+
+    console.log('[status-cb] FINALIZED (0-duration) — callSid:', callSid, 'transport:', transport, 'status:', callStatus,
+      'duration: 0, chargedCoins: 0, listenerCredited: 0');
   }
 
   try {

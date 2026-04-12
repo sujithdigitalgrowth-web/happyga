@@ -26,14 +26,26 @@ export function createSessionsPage({ listElement }) {
     }
   }
 
-  function statusLabel(s, duration) {
-    if (s === 'completed' && (!duration || duration <= 0)) return 'Not connected';
-    const map = { completed: 'Completed', busy: 'Busy', 'no-answer': 'No answer', failed: 'Failed', canceled: 'Canceled' };
+  function statusLabel(s, duration, connected) {
+    // Use connected field if available for precise disambiguation
+    if (connected === false && (!duration || duration <= 0)) return 'Missed';
+    if (s === 'completed' && (!duration || duration <= 0)) return 'Missed';
+    const map = {
+      completed: 'Completed',
+      connected: 'Completed',
+      busy: 'Busy',
+      'no-answer': 'Missed',
+      failed: 'Failed',
+      canceled: 'Canceled',
+      missed: 'Missed',
+      initiated: 'Not connected',
+      ringing: 'Not connected',
+    };
     return map[s] || s || 'Unknown';
   }
 
-  function statusClass(s, duration) {
-    if (s === 'completed' && duration > 0) return 'session-status-ok';
+  function statusClass(s, duration, connected) {
+    if (connected === true || (s === 'completed' && duration > 0)) return 'session-status-ok';
     return 'session-status-fail';
   }
 
@@ -43,6 +55,7 @@ export function createSessionsPage({ listElement }) {
     const initial = name.charAt(0).toUpperCase();
     const status = session.finalStatus || null;
     const duration = session.durationSeconds;
+    const connected = session.connected;
     const coins = session.chargedCoins;
     const lowBal = session.endedDueToLowBalance;
     const time = formatTime(session.completedAt || session.createdAt || null);
@@ -67,7 +80,7 @@ export function createSessionsPage({ listElement }) {
         <div class="session-avatar" aria-hidden="true">${escapeHtml(initial)}</div>
         <div class="session-body">
           <p class="session-name">${escapeHtml(name)}</p>
-          <p class="session-status ${statusClass(status, duration)}">${escapeHtml(statusLabel(status, duration))}</p>
+          <p class="session-status ${statusClass(status, duration, connected)}">${escapeHtml(statusLabel(status, duration, connected))}</p>
           ${duration > 0 ? `<p class="session-meta">Duration: ${formatDuration(duration)}</p>` : ''}
           ${coins > 0 ? `<p class="session-meta">Coins used: ${coins}</p>` : coins === 0 && status ? `<p class="session-meta">Coins used: 0</p>` : ''}
           ${lowBal ? '<p class="session-low-balance">Ended due to low balance</p>' : ''}

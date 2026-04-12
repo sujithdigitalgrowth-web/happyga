@@ -1,5 +1,6 @@
 import { loadFragments } from './shared/fragment-loader.js';
 import { writeAuthState } from './services/auth.js';
+import { fetchWallet } from './services/api.js';
 import { firebaseAuth } from './firebase.js';
 import {
   RecaptchaVerifier,
@@ -126,14 +127,40 @@ async function init() {
   }
 
   async function completeLogin({ uid, phoneNumber, getToken }) {
-    const idToken = await getToken();
-    writeAuthState({
+    console.log('[DEBUG-LOGIN] completeLogin called — uid:', uid, 'phoneNumber:', phoneNumber);
+    let idToken;
+    try {
+      idToken = await getToken();
+      console.log('[DEBUG-LOGIN] ID token retrieved — length:', idToken?.length, 'starts:', idToken?.substring(0, 30));
+    } catch (tokenErr) {
+      console.error('[DEBUG-LOGIN] getToken() FAILED:', tokenErr);
+      showStatus('Login failed: could not retrieve auth token.');
+      return;
+    }
+    if (!uid) console.warn('[DEBUG-LOGIN] uid is MISSING — auth state may be incomplete');
+    if (!idToken) console.warn('[DEBUG-LOGIN] idToken is MISSING — API calls will fail');
+    const authState = {
       phone: phoneNumber || (currentPhone ? `+91${currentPhone}` : null),
       uid,
       mode: 'firebase',
       idToken,
       verifiedAt: new Date().toISOString(),
-    });
+    };
+    console.log('[DEBUG-LOGIN] Writing auth state:', JSON.stringify({ ...authState, idToken: idToken ? `${idToken.substring(0, 20)}...` : null }));
+    writeAuthState(authState);
+
+    // Bootstrap: call /api/wallet immediately to create users/{uid} doc in Firestore.
+    // This is critical for native APK users whose first page load may fail silently.
+    try {
+      console.log('[DEBUG-LOGIN] Calling /api/wallet to bootstrap user doc...');
+      const wallet = await fetchWallet(authState);
+      console.log('[DEBUG-LOGIN] Wallet bootstrap SUCCESS:', JSON.stringify(wallet));
+    } catch (walletErr) {
+      // Log loudly but don't block login — user doc creation will be retried on main page.
+      console.error('[DEBUG-LOGIN] Wallet bootstrap FAILED:', walletErr?.message || walletErr);
+      console.error('[DEBUG-LOGIN] User doc may NOT have been created in Firestore!');
+    }
+
     showStatus('Login successful. Redirecting...');
     window.location.href = 'index.html';
   }
@@ -154,11 +181,16 @@ async function init() {
     });
 
     await nativeFirebaseAuth.addListener('phoneVerificationCompleted', async (event) => {
+      console.log('[DEBUG-LOGIN] phoneVerificationCompleted event:', JSON.stringify(event, null, 2));
+      console.log('[DEBUG-LOGIN] event.result:', event.result);
+      console.log('[DEBUG-LOGIN] event.result?.user:', event.result?.user);
+      console.log('[DEBUG-LOGIN] uid:', event.result?.user?.uid, 'phone:', event.result?.user?.phoneNumber);
       await completeLogin({
         uid: event.result?.user?.uid,
         phoneNumber: event.result?.user?.phoneNumber,
         getToken: async () => {
           const tokenResult = await nativeFirebaseAuth.getIdToken({ forceRefresh: true });
+          console.log('[DEBUG-LOGIN] getIdToken result keys:', Object.keys(tokenResult || {}));
           return tokenResult.token;
         },
       });
@@ -277,16 +309,21 @@ async function init() {
         verificationId: nativeVerificationId,
         verificationCode: enteredOtp,
       });
+      console.log('[DEBUG-LOGIN] confirmVerificationCode result:', JSON.stringify(result, null, 2));
+      console.log('[DEBUG-LOGIN] result.user:', result.user);
+      console.log('[DEBUG-LOGIN] uid:', result.user?.uid, 'phone:', result.user?.phoneNumber);
       await completeLogin({
         uid: result.user?.uid,
         phoneNumber: result.user?.phoneNumber,
         getToken: async () => {
           const tokenResult = await nativeFirebaseAuth.getIdToken({ forceRefresh: true });
+          console.log('[DEBUG-LOGIN] getIdToken result keys:', Object.keys(tokenResult || {}));
           return tokenResult.token;
         },
       });
     } catch (err) {
-      console.error('OTP verification error:', err);
+      console.error('[DEBUG-LOGIN] OTP verification FAILED:', err);
+      console.error('[DEBUG-LOGIN] Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
       showStatus(getOtpErrorMessage(err, true));
     }
   });

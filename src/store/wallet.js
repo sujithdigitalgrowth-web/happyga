@@ -20,6 +20,7 @@ function buildResponse(balance, user) {
 }
 
 async function grantStarterCoins(user) {
+  console.log('[DEBUG-WALLET-STORE] grantStarterCoins called for uid:', user.uid, 'phone:', user.phone);
   const userRef = walletRef(user);
   const starterTransactionRef = userRef.collection('transactions').doc('starter_bonus');
   const now = new Date();
@@ -30,9 +31,11 @@ async function grantStarterCoins(user) {
     const hasCoins = typeof data?.coins === 'number';
 
     if (hasCoins) {
+      console.log('[DEBUG-WALLET-STORE] User already has coins — skipping starter grant');
       return;
     }
 
+    console.log('[DEBUG-WALLET-STORE] Creating NEW user doc with starter coins:', DEFAULT_STARTING_COINS);
     txn.set(userRef, {
       phone: user.phone,
       coins: DEFAULT_STARTING_COINS,
@@ -52,18 +55,22 @@ async function grantStarterCoins(user) {
 }
 
 async function getWallet(user) {
+  console.log('[DEBUG-WALLET-STORE] getWallet called for uid:', user.uid);
   const doc = await walletRef(user).get();
   if (!doc.exists) {
+    console.log('[DEBUG-WALLET-STORE] No user doc found — granting starter coins');
     await grantStarterCoins(user);
     return buildResponse(DEFAULT_STARTING_COINS, user);
   }
 
   if (typeof doc.data().coins !== 'number') {
+    console.log('[DEBUG-WALLET-STORE] User doc exists but no coins field — granting starter coins');
     await grantStarterCoins(user);
     return buildResponse(DEFAULT_STARTING_COINS, user);
   }
 
   const balance = doc.data().coins;
+  console.log('[DEBUG-WALLET-STORE] Existing user — balance:', balance);
   return buildResponse(balance, user);
 }
 

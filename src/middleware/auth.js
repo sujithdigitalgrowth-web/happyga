@@ -15,14 +15,18 @@ function toPositiveInteger(value) {
 async function resolveUserIdentity(req) {
   // Try Firebase ID token first (Authorization: Bearer <token>)
   const authHeader = req.get('Authorization');
+  console.log('[DEBUG-AUTH] resolveUserIdentity called — Authorization:', authHeader ? `Bearer ${authHeader.slice(7, 27)}...` : 'MISSING');
+  console.log('[DEBUG-AUTH] x-happyga-phone:', req.get('x-happyga-phone'), 'x-happyga-auth-mode:', req.get('x-happyga-auth-mode'));
   if (authHeader?.startsWith('Bearer ') && auth) {
     const idToken = authHeader.slice(7);
     try {
       const decoded = await auth.verifyIdToken(idToken);
       const phone = decoded.phone_number ||
         normalizePhone(req.get('x-happyga-phone') || req.body?.phone || req.query.phone);
+      console.log('[DEBUG-AUTH] Token verified — uid:', decoded.uid, 'phone:', phone, 'authMode: firebase');
       return { uid: decoded.uid, phone, authMode: 'firebase' };
-    } catch {
+    } catch (verifyErr) {
+      console.error('[DEBUG-AUTH] verifyIdToken FAILED:', verifyErr.code || verifyErr.message);
       return null;
     }
   }
@@ -30,7 +34,11 @@ async function resolveUserIdentity(req) {
   const phone = normalizePhone(
     req.get('x-happyga-phone') || req.body?.phone || req.query.phone,
   );
-  if (!phone) return null;
+  if (!phone) {
+    console.warn('[DEBUG-AUTH] No auth — no Bearer token and no phone header');
+    return null;
+  }
+  console.log('[DEBUG-AUTH] Demo mode — uid:', phone, 'phone:', phone);
   return { uid: phone, phone, authMode: 'demo' };
 }
 
